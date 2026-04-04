@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -20,12 +21,21 @@ class FamilySmartApp extends ConsumerWidget {
       theme: AppTheme.dark(),
       routerConfig: router,
       builder: (context, child) {
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            child ?? const SizedBox.shrink(),
-            const GlobalMicOverlay(),
-          ],
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: const SystemUiOverlayStyle(
+            statusBarColor: AppTheme.shellBackground,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+            systemNavigationBarColor: AppTheme.shellBackground,
+            systemNavigationBarIconBrightness: Brightness.light,
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              child ?? const SizedBox.shrink(),
+              const GlobalMicOverlay(),
+            ],
+          ),
         );
       },
     );

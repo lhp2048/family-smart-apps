@@ -23,16 +23,17 @@ class DashboardLifeMenuItem {
     required this.subtitle,
     required this.icon,
     required this.iconBackground,
-    required this.badgeLabel,
-    required this.badgeColor,
     required this.route,
+    this.badgeLabel,
+    this.badgeColor,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
   final Color iconBackground;
-  final String badgeLabel;
-  final Color badgeColor;
+  /// 为 null 或空字符串时不展示角标（如「设置」）
+  final String? badgeLabel;
+  final Color? badgeColor;
   final String route;
 }

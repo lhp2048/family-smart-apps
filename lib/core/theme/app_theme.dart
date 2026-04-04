@@ -4,8 +4,10 @@ import '../constants/app_spacing.dart';
 
 /// 暗色主题与设计 Token（需求文档 §10.1 最小集）
 abstract final class AppTheme {
+  /// 全局页面底色（与主页一致）；状态栏/导航栏通过 [SystemUiOverlayStyle] 对齐此色
+  static const Color shellBackground = Color(0xFF1A1A2E);
+
   static ThemeData dark() {
-    const bg = Color(0xFF121212);
     const bgSecondary = Color(0xFF1E1E1E);
     const card = Color(0xFF2C2C2C);
     const divider = Color(0xFF3D3D3D);
@@ -16,7 +18,7 @@ abstract final class AppTheme {
     const error = Color(0xFFEF5350);
 
     final colorScheme = ColorScheme.dark(
-      surface: bg,
+      surface: shellBackground,
       onSurface: onSurface,
       primary: const Color(0xFF7C9EFF),
       onPrimary: Colors.black,
@@ -29,7 +31,7 @@ abstract final class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: bg,
+      scaffoldBackgroundColor: shellBackground,
       dividerColor: divider,
       cardTheme: CardThemeData(
         color: card,
@@ -66,7 +68,7 @@ abstract final class AppTheme {
       ),
       extensions: <ThemeExtension<dynamic>>[
         AppColors(
-          background: bg,
+          background: shellBackground,
           backgroundSecondary: bgSecondary,
           card: card,
           divider: divider,

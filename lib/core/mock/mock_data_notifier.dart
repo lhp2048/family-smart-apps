@@ -30,9 +30,8 @@ class MockAppState {
     required this.taskItems,
     required this.dashboardHomeworkRows,
     required this.dashboardPointsRows,
-    required this.dashboardHomeworkFooter,
-    required this.dashboardPointsFooter,
     required this.dashboardLifeMenu,
+    required this.dashboardSystemMenu,
     required this.pointsRules,
     required this.pointsWeekCycles,
     required this.wishwallItems,
@@ -51,9 +50,10 @@ class MockAppState {
   /// 首页原型：作业完成卡片
   final List<DashboardHomeworkRow> dashboardHomeworkRows;
   final List<DashboardPointsRow> dashboardPointsRows;
-  final String dashboardHomeworkFooter;
-  final String dashboardPointsFooter;
   final List<DashboardLifeMenuItem> dashboardLifeMenu;
+
+  /// 首页：「系统和配置」入口
+  final List<DashboardLifeMenuItem> dashboardSystemMenu;
 
   /// 积分榜：规则与按周流水（原型假数据）
   final List<PointsRuleLine> pointsRules;
@@ -76,9 +76,8 @@ class MockAppState {
     List<TaskItemEntity>? taskItems,
     List<DashboardHomeworkRow>? dashboardHomeworkRows,
     List<DashboardPointsRow>? dashboardPointsRows,
-    String? dashboardHomeworkFooter,
-    String? dashboardPointsFooter,
     List<DashboardLifeMenuItem>? dashboardLifeMenu,
+    List<DashboardLifeMenuItem>? dashboardSystemMenu,
     List<PointsRuleLine>? pointsRules,
     List<PointsWeekCycle>? pointsWeekCycles,
     List<WishwallItem>? wishwallItems,
@@ -93,20 +92,18 @@ class MockAppState {
       taskDates: taskDates ?? this.taskDates,
       taskGroups: taskGroups ?? this.taskGroups,
       taskItems: taskItems ?? this.taskItems,
-      dashboardHomeworkRows: dashboardHomeworkRows ?? this.dashboardHomeworkRows,
+      dashboardHomeworkRows:
+          dashboardHomeworkRows ?? this.dashboardHomeworkRows,
       dashboardPointsRows: dashboardPointsRows ?? this.dashboardPointsRows,
-      dashboardHomeworkFooter:
-          dashboardHomeworkFooter ?? this.dashboardHomeworkFooter,
-      dashboardPointsFooter:
-          dashboardPointsFooter ?? this.dashboardPointsFooter,
       dashboardLifeMenu: dashboardLifeMenu ?? this.dashboardLifeMenu,
+      dashboardSystemMenu:
+          dashboardSystemMenu ?? this.dashboardSystemMenu,
       pointsRules: pointsRules ?? this.pointsRules,
       pointsWeekCycles: pointsWeekCycles ?? this.pointsWeekCycles,
       wishwallItems: wishwallItems ?? this.wishwallItems,
       timemachineEntries: timemachineEntries ?? this.timemachineEntries,
       debateDayBundles: debateDayBundles ?? this.debateDayBundles,
-      extracurricularItems:
-          extracurricularItems ?? this.extracurricularItems,
+      extracurricularItems: extracurricularItems ?? this.extracurricularItems,
     );
   }
 
@@ -209,8 +206,11 @@ class MockAppState {
 
     final dates = <TaskDateEntity>[];
     for (var i = 0; i < 7; i++) {
-      final d =
-          DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+      final d = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: i));
       final bd = formatBizDate(d);
       dates.add(
         TaskDateEntity()
@@ -268,17 +268,17 @@ class MockAppState {
             ..taskCode = code
             ..name = name
             ..score = 1
-            ..statusByMemberJson = jsonEncode(
-              <String, bool>{'xixi': xixiDone, 'chuan': chuanDone},
-            )
+            ..statusByMemberJson = jsonEncode(<String, bool>{
+              'xixi': xixiDone,
+              'chuan': chuanDone,
+            })
             ..completedAtByMemberJson = jsonEncode(at)
             ..sort = ti + 1
             ..updatedAt = now,
         );
       }
 
-      allGroups =
-          _withGroupProgress(allGroups, allItems, bd, 'homework');
+      allGroups = _withGroupProgress(allGroups, allItems, bd, 'homework');
     }
 
     for (var i = 0; i < dates.length; i++) {
@@ -301,8 +301,7 @@ class MockAppState {
       summaries[bd] = HomeSummaryEntity()
         ..bizDate = bd
         ..taskProgress = computeDayTaskProgress(dayItems)
-        ..memberScoresJson =
-            jsonEncode(<String, int>{'xixi': 65, 'chuan': 80})
+        ..memberScoresJson = jsonEncode(<String, int>{'xixi': 65, 'chuan': 80})
         ..updatedAt = now;
     }
 
@@ -362,52 +361,26 @@ class MockAppState {
       ),
     ];
 
+    const systemMenu = <DashboardLifeMenuItem>[
+      DashboardLifeMenuItem(
+        title: '设置',
+        subtitle: '应用偏好、通知与关于',
+        icon: Icons.settings_rounded,
+        iconBackground: Color(0xFF546E7A),
+        route: '/settings',
+      ),
+    ];
+
     const pointsRules = <PointsRuleLine>[
-      PointsRuleLine(
-        isPositive: true,
-        description: '7:10 前起床',
-        value: 5,
-      ),
-      PointsRuleLine(
-        isPositive: true,
-        description: '19:30 前完成作业',
-        value: 15,
-      ),
-      PointsRuleLine(
-        isPositive: true,
-        description: '20:00 前完成作业',
-        value: 10,
-      ),
-      PointsRuleLine(
-        isPositive: true,
-        description: '20:30 前完成作业',
-        value: 5,
-      ),
-      PointsRuleLine(
-        isPositive: true,
-        description: '老师表扬 / 获奖',
-        value: 15,
-      ),
-      PointsRuleLine(
-        isPositive: true,
-        description: '竞赛活动',
-        value: 5,
-      ),
-      PointsRuleLine(
-        isPositive: false,
-        description: '21:30 作业未完成',
-        value: 5,
-      ),
-      PointsRuleLine(
-        isPositive: false,
-        description: '22:00 未入睡',
-        value: 5,
-      ),
-      PointsRuleLine(
-        isPositive: false,
-        description: '被老师点名 / 争吵',
-        value: 10,
-      ),
+      PointsRuleLine(isPositive: true, description: '7:10 前起床', value: 5),
+      PointsRuleLine(isPositive: true, description: '19:30 前完成作业', value: 15),
+      PointsRuleLine(isPositive: true, description: '20:00 前完成作业', value: 10),
+      PointsRuleLine(isPositive: true, description: '20:30 前完成作业', value: 5),
+      PointsRuleLine(isPositive: true, description: '老师表扬 / 获奖', value: 15),
+      PointsRuleLine(isPositive: true, description: '竞赛活动', value: 5),
+      PointsRuleLine(isPositive: false, description: '21:30 作业未完成', value: 5),
+      PointsRuleLine(isPositive: false, description: '22:00 未入睡', value: 5),
+      PointsRuleLine(isPositive: false, description: '被老师点名 / 争吵', value: 10),
     ];
 
     final pointsWeekCycles = <PointsWeekCycle>[
@@ -508,8 +481,7 @@ class MockAppState {
         id: 'tm2',
         bizDate: '2026-04-01',
         title: '4月1日 🌸 晚饭桌旁的笑声',
-        body:
-            '晚上一家人围坐吃饭，曦曦主动讲了学校里的趣事，川川则科普起了篮球规则。妈妈说：「今天家里气氛💯。」',
+        body: '晚上一家人围坐吃饭，曦曦主动讲了学校里的趣事，川川则科普起了篮球规则。妈妈说：「今天家里气氛💯。」',
       ),
       TimemachineEntry(
         id: 'tm3',
@@ -523,22 +495,19 @@ class MockAppState {
         id: 'tm4',
         bizDate: '2026-03-28',
         title: '3月28日 📚 图书馆半日',
-        body:
-            '周末上午泡图书馆，各自挑了感兴趣的书。川川迷上了科普，曦曦读完了半本桥梁书。',
+        body: '周末上午泡图书馆，各自挑了感兴趣的书。川川迷上了科普，曦曦读完了半本桥梁书。',
       ),
       TimemachineEntry(
         id: 'tm5',
         bizDate: '2026-03-28',
         title: '3月28日 🎨 随手画的小创作',
-        body:
-            '下午自由画画时间，曦曦画了一幅「全家去野餐」，配色大胆，被贴在了冰箱上。',
+        body: '下午自由画画时间，曦曦画了一幅「全家去野餐」，配色大胆，被贴在了冰箱上。',
       ),
       TimemachineEntry(
         id: 'tm6',
         bizDate: '2026-03-25',
         title: '3月25日 🎹 练琴小进步',
-        body:
-            '曦曦曲子终于连贯了一遍，虽然还有错音，但态度很认真，自己要求再练两遍。',
+        body: '曦曦曲子终于连贯了一遍，虽然还有错音，但态度很认真，自己要求再练两遍。',
       ),
       TimemachineEntry(
         id: 'tm7',
@@ -556,8 +525,7 @@ class MockAppState {
         id: 'tm9',
         bizDate: '2026-03-18',
         title: '3月18日 ✅ 单科小测反馈',
-        body:
-            '数学老师留言表扬计算准确率提高，回家一起复盘了错题本。',
+        body: '数学老师留言表扬计算准确率提高，回家一起复盘了错题本。',
       ),
       TimemachineEntry(
         id: 'tm10',
@@ -567,13 +535,7 @@ class MockAppState {
       ),
     ];
 
-    const debateGuideSteps = <String>[
-      '主持人读题目',
-      '选择立场',
-      '陈述理由',
-      '换边辩论',
-      '总结',
-    ];
+    const debateGuideSteps = <String>['主持人读题目', '选择立场', '陈述理由', '换边辩论', '总结'];
 
     const debateDayBundles = <DebateDayBundle>[
       DebateDayBundle(
@@ -644,8 +606,7 @@ class MockAppState {
         year: 2005,
         genre: '家庭/喜剧',
         ratingStars: 5,
-        description:
-            '重组家庭的日常爆笑与温情，适合全家一起看，轻松讨论亲子关系与成长话题。',
+        description: '重组家庭的日常爆笑与温情，适合全家一起看，轻松讨论亲子关系与成长话题。',
         emoji: '🏠',
         watched: false,
       ),
@@ -658,8 +619,7 @@ class MockAppState {
         year: 2014,
         genre: '真人秀/竞技',
         ratingStars: 4,
-        description:
-            '户外竞技与团队协作，可看团队合作与坚持，家长可引导孩子聊「规则与公平」。',
+        description: '户外竞技与团队协作，可看团队合作与坚持，家长可引导孩子聊「规则与公平」。',
         emoji: '🏃',
         watched: false,
       ),
@@ -672,8 +632,7 @@ class MockAppState {
         year: 2019,
         genre: '竞技/演讲',
         ratingStars: 5,
-        description:
-            '专业主持与即兴表达的高水平对决，适合启发孩子的语言组织与临场反应。',
+        description: '专业主持与即兴表达的高水平对决，适合启发孩子的语言组织与临场反应。',
         emoji: '🎤',
         watched: false,
       ),
@@ -686,8 +645,7 @@ class MockAppState {
         year: 2016,
         genre: '访谈/人文',
         ratingStars: 5,
-        description:
-            '深度对话不同领域人物，拓展视野，适合高年级亲子共赏后讨论价值观。',
+        description: '深度对话不同领域人物，拓展视野，适合高年级亲子共赏后讨论价值观。',
         emoji: '🎙️',
         watched: false,
       ),
@@ -700,8 +658,7 @@ class MockAppState {
         year: 2012,
         genre: '演讲/青年',
         ratingStars: 4,
-        description:
-            '青年公开课形式，嘉宾分享人生选择与坚持，可联系孩子的目标与兴趣。',
+        description: '青年公开课形式，嘉宾分享人生选择与坚持，可联系孩子的目标与兴趣。',
         emoji: '📣',
         watched: false,
       ),
@@ -714,8 +671,7 @@ class MockAppState {
         year: 2013,
         genre: '辩论/思辨',
         ratingStars: 5,
-        description:
-            '华语辩论赛事精选，逻辑与表达并重，可与家庭「话题辩论」联动观看。',
+        description: '华语辩论赛事精选，逻辑与表达并重，可与家庭「话题辩论」联动观看。',
         emoji: '⚖️',
         watched: false,
       ),
@@ -728,8 +684,7 @@ class MockAppState {
         year: 2009,
         genre: '战争/人性',
         ratingStars: 5,
-        description:
-            '群像刻画深刻，适合家长遴选片段与孩子讨论勇气、责任与历史感受。',
+        description: '群像刻画深刻，适合家长遴选片段与孩子讨论勇气、责任与历史感受。',
         emoji: '📦',
         watched: false,
       ),
@@ -742,8 +697,7 @@ class MockAppState {
         year: 2001,
         genre: '奇幻/史诗',
         ratingStars: 5,
-        description:
-            '经典奇幻三部曲开篇，友情与使命主题突出，可按年龄段分次观看。',
+        description: '经典奇幻三部曲开篇，友情与使命主题突出，可按年龄段分次观看。',
         emoji: '💍',
         watched: false,
       ),
@@ -756,8 +710,7 @@ class MockAppState {
         year: 2002,
         genre: '奇幻/史诗',
         ratingStars: 5,
-        description:
-            '中段战役与角色成长高潮迭起，建议与第一部连贯观看体验更佳。',
+        description: '中段战役与角色成长高潮迭起，建议与第一部连贯观看体验更佳。',
         emoji: '🗼',
         watched: false,
       ),
@@ -770,8 +723,7 @@ class MockAppState {
         year: 2000,
         genre: '奇幻/成长',
         ratingStars: 5,
-        description:
-            '魔法世界入门篇，可亲子共读或先看片再读书，激发阅读兴趣。',
+        description: '魔法世界入门篇，可亲子共读或先看片再读书，激发阅读兴趣。',
         emoji: '📖',
         watched: true,
       ),
@@ -784,8 +736,7 @@ class MockAppState {
         year: 2019,
         genre: '动画/冒险',
         ratingStars: 5,
-        description:
-            '国漫治愈系代表作之一，画风清新，适合全家轻松观看。',
+        description: '国漫治愈系代表作之一，画风清新，适合全家轻松观看。',
         emoji: '🐱',
         watched: false,
       ),
@@ -800,9 +751,8 @@ class MockAppState {
       taskItems: allItems,
       dashboardHomeworkRows: homeworkRows,
       dashboardPointsRows: pointsRows,
-      dashboardHomeworkFooter: '今日作业进度',
-      dashboardPointsFooter: '本周总积分（初始45分）',
       dashboardLifeMenu: lifeMenu,
+      dashboardSystemMenu: systemMenu,
       pointsRules: pointsRules,
       pointsWeekCycles: pointsWeekCycles,
       wishwallItems: wishwallItems,
@@ -813,8 +763,7 @@ class MockAppState {
   }
 
   List<TaskGroupEntity> taskGroupsFor(String bizDate) {
-    final list =
-        taskGroups.where((g) => g.bizDate == bizDate).toList();
+    final list = taskGroups.where((g) => g.bizDate == bizDate).toList();
     list.sort((a, b) => a.sort.compareTo(b.sort));
     return list;
   }
@@ -833,20 +782,19 @@ class MockAppState {
     String bizDate,
     String groupCode,
   ) {
-    final list = items
-        .where((e) => e.bizDate == bizDate && e.groupCode == groupCode)
-        .toList()
-      ..sort((a, b) => a.sort.compareTo(b.sort));
+    final list =
+        items
+            .where((e) => e.bizDate == bizDate && e.groupCode == groupCode)
+            .toList()
+          ..sort((a, b) => a.sort.compareTo(b.sort));
     final p = computeTaskGroupProgress(list);
-    return groups
-        .map((g) {
-          if (g.bizDate == bizDate && g.groupCode == groupCode) {
-            g.progress = p;
-            return g;
-          }
-          return g;
-        })
-        .toList();
+    return groups.map((g) {
+      if (g.bizDate == bizDate && g.groupCode == groupCode) {
+        g.progress = p;
+        return g;
+      }
+      return g;
+    }).toList();
   }
 }
 

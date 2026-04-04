@@ -80,8 +80,9 @@ class PointsPage extends ConsumerWidget {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            // 历史周期横滑条：标签 + 卡片两行内容在部分字体度量下会略超固定高度，留足余量避免 1px overflow
                             SizedBox(
-                              height: 108,
+                              height: 118,
                               child: _WeekSidebar(
                                 cycles: cycles,
                                 selectedId: selectedId,
@@ -256,7 +257,12 @@ class _WeekSidebar extends StatelessWidget {
                       : Colors.white.withValues(alpha: 0.06),
                 ),
               ),
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+              padding: EdgeInsets.fromLTRB(
+                10,
+                horizontal ? 8 : 10,
+                10,
+                horizontal ? 8 : 10,
+              ),
               child: horizontal
                   ? Row(
                       mainAxisSize: MainAxisSize.min,
@@ -297,7 +303,7 @@ class _WeekSidebar extends StatelessWidget {
                                 ],
                               ],
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             miniScores(c),
                           ],
                         ),

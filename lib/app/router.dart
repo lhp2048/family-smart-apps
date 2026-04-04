@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/dashboard/presentation/coming_soon_page.dart';
 import '../features/dashboard/presentation/dashboard_page.dart';
+import '../features/dashboard/presentation/settings_page.dart';
 import '../features/debate/presentation/debate_page.dart';
 import '../features/extracurricular/presentation/extracurricular_page.dart';
 import '../features/voice/presentation/voice_history_chat_page.dart';
@@ -21,7 +22,7 @@ GoRouter createAppRouter() {
       GoRoute(
         path: '/',
         name: 'dashboard',
-        builder: (context, state) => const DashboardPage(),
+        builder: (context, state) => DashboardPage(),
       ),
       GoRoute(
         path: '/tasks',
@@ -63,6 +64,11 @@ GoRouter createAppRouter() {
         path: '/voice-history',
         name: 'voiceHistory',
         builder: (context, state) => const VoiceHistoryChatPage(),
+      ),
+      GoRoute(
+        path: '/settings',
+        name: 'settings',
+        builder: (context, state) => const SettingsPage(),
       ),
     ],
   );

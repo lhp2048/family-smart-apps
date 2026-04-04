@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' show min;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,8 +8,12 @@ import 'package:go_router/go_router.dart';
 import '../../../core/mock/mock_data_notifier.dart';
 import '../data/dashboard_prototype_models.dart';
 
-/// 原型主色：深紫灰背景
-const Color _kDashboardBg = Color(0xFF1A1A2E);
+/// 主页主内容区左右边距（略大则内容带更「窄」）
+/// 使用非 const 的 [EdgeInsets]，避免仅改数字时 Hot Reload 不刷新布局。
+const double _kDashboardHorizontalPadding = 28;
+
+/// 宽屏上内容列最大宽度（超出则水平居中，否则改边距看不出效果）
+const double _kDashboardMaxContentWidth = 540;
 
 const Color _kHomeworkTitle = Color(0xFFC4A7FF);
 const Color _kPointsTitle = Color(0xFFFF8BC4);
@@ -27,10 +34,11 @@ String _formatZhDate(DateTime d) {
   return '$y/$m/$day ${weekdays[d.weekday - 1]}';
 }
 
-String _formatTime(DateTime d) {
+String _formatHms(DateTime d) {
   final h = d.hour.toString().padLeft(2, '0');
   final m = d.minute.toString().padLeft(2, '0');
-  return '$h:$m';
+  final s = d.second.toString().padLeft(2, '0');
+  return '$h:$m:$s';
 }
 
 Color _onBadge(Color bg) =>
@@ -41,125 +49,202 @@ class DashboardPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final now = DateTime.now();
     final mock = ref.watch(mockDataNotifierProvider);
 
     return Scaffold(
-      backgroundColor: _kDashboardBg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _DashboardHeader(now: now),
-              const SizedBox(height: 22),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _HomeworkSummaryCard(
-                        rows: mock.dashboardHomeworkRows,
-                        footer: mock.dashboardHomeworkFooter,
-                        onTap: () => context.push('/tasks'),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final maxContentWidth = min(
+              constraints.maxWidth,
+              _kDashboardMaxContentWidth,
+            );
+            final hPad = _kDashboardHorizontalPadding;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: SizedBox(
+                    width: maxContentWidth,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(hPad, 6, hPad, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const _DashboardHeader(),
+                          const SizedBox(height: 12),
+                          IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: _HomeworkSummaryCard(
+                                    rows: mock.dashboardHomeworkRows,
+                                    onTap: () => context.push('/tasks'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _PointsSummaryCard(
+                                    rows: mock.dashboardPointsRows,
+                                    onTap: () => context.push('/points'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _PointsSummaryCard(
-                        rows: mock.dashboardPointsRows,
-                        footer: mock.dashboardPointsFooter,
-                        onTap: () => context.push('/points'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
-              Text(
-                '学习和生活',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 14),
-              ...mock.dashboardLifeMenu.map(
-                (e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _LifeMenuCard(
-                    item: e,
-                    onTap: () => context.push(e.route),
                   ),
                 ),
-              ),
-            ],
-          ),
+                Expanded(
+                  child: Center(
+                    child: SizedBox(
+                      width: maxContentWidth,
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              '学习和生活',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            ...mock.dashboardLifeMenu.map(
+                              (e) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _LifeMenuCard(
+                                  item: e,
+                                  onTap: () => context.push(e.route),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            Text(
+                              '系统和配置',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            ...mock.dashboardSystemMenu.map(
+                              (e) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _LifeMenuCard(
+                                  item: e,
+                                  onTap: () => context.push(e.route),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _DashboardHeader extends StatelessWidget {
-  const _DashboardHeader({required this.now});
+class _DashboardHeader extends StatefulWidget {
+  const _DashboardHeader();
 
-  final DateTime now;
+  @override
+  State<_DashboardHeader> createState() => _DashboardHeaderState();
+}
+
+class _DashboardHeaderState extends State<_DashboardHeader> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                _greetingLine(now),
+              const Text(
+                '我家',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.55),
-                  fontSize: 14,
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  height: 1.12,
+                  letterSpacing: -0.3,
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
-                '智能中心',
+              Text(
+                _greetingLine(now),
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  height: 1.1,
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 12,
+                  height: 1.2,
                 ),
               ),
             ],
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                _formatTime(now),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
               Text(
                 _formatZhDate(now),
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.55),
+                  fontSize: 10,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _formatHms(now),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: [FontFeature.tabularFigures()],
                 ),
               ),
             ],
@@ -173,12 +258,10 @@ class _DashboardHeader extends StatelessWidget {
 class _HomeworkSummaryCard extends StatelessWidget {
   const _HomeworkSummaryCard({
     required this.rows,
-    required this.footer,
     required this.onTap,
   });
 
   final List<DashboardHomeworkRow> rows;
-  final String footer;
   final VoidCallback onTap;
 
   @override
@@ -187,10 +270,10 @@ class _HomeworkSummaryCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(18),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -201,42 +284,39 @@ class _HomeworkSummaryCard extends StatelessWidget {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.menu_book_rounded,
-                        color: Colors.orange.shade200, size: 22),
-                    const SizedBox(width: 4),
-                    Icon(Icons.menu_book_rounded,
-                        color: Colors.lightGreenAccent.shade100, size: 22),
-                    const SizedBox(width: 4),
-                    Icon(Icons.menu_book_rounded,
-                        color: Colors.lightBlue.shade200, size: 22),
+                    Icon(
+                      Icons.menu_book_rounded,
+                      color: Colors.orange.shade200,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '作业进度',
+                      style: TextStyle(
+                        color: _kHomeworkTitle,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  '作业完成',
-                  style: TextStyle(
-                    color: _kHomeworkTitle,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 ...rows.map(
                   (r) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.only(bottom: 4),
                     child: Row(
                       children: [
                         Text(
                           r.name,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 14,
+                            fontSize: 13,
                           ),
                         ),
                         const Spacer(),
@@ -244,32 +324,12 @@ class _HomeworkSummaryCard extends StatelessWidget {
                           r.progressText,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.45),
-                            fontSize: 14,
+                            fontSize: 13,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-                const Spacer(),
-                const Divider(height: 20, color: Color(0x33FFFFFF)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        footer,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      size: 20,
-                      color: Colors.white.withValues(alpha: 0.35),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -283,12 +343,10 @@ class _HomeworkSummaryCard extends StatelessWidget {
 class _PointsSummaryCard extends StatelessWidget {
   const _PointsSummaryCard({
     required this.rows,
-    required this.footer,
     required this.onTap,
   });
 
   final List<DashboardPointsRow> rows;
-  final String footer;
   final VoidCallback onTap;
 
   @override
@@ -297,10 +355,10 @@ class _PointsSummaryCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(18),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -311,35 +369,39 @@ class _PointsSummaryCard extends StatelessWidget {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.sports_esports_rounded,
-                  color: Colors.greenAccent.shade200,
-                  size: 28,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.sports_esports_rounded,
+                      color: Colors.greenAccent.shade200,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '积分榜',
+                      style: TextStyle(
+                        color: _kPointsTitle,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  '积分榜',
-                  style: TextStyle(
-                    color: _kPointsTitle,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 10),
                 ...rows.map(
                   (r) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.only(bottom: 4),
                     child: Row(
                       children: [
                         Text(
                           r.name,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 14,
+                            fontSize: 13,
                           ),
                         ),
                         const Spacer(),
@@ -347,33 +409,13 @@ class _PointsSummaryCard extends StatelessWidget {
                           '${r.score} 分',
                           style: const TextStyle(
                             color: _kScoreGreen,
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-                const Spacer(),
-                const Divider(height: 20, color: Color(0x33FFFFFF)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        footer,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      size: 20,
-                      color: Colors.white.withValues(alpha: 0.35),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -401,9 +443,7 @@ class _LifeMenuCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.06),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -416,11 +456,7 @@ class _LifeMenuCard extends StatelessWidget {
                     color: item.iconBackground,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(
-                    item.icon,
-                    color: Colors.white,
-                    size: 26,
-                  ),
+                  child: Icon(item.icon, color: Colors.white, size: 26),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -447,23 +483,30 @@ class _LifeMenuCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: item.badgeColor,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    item.badgeLabel,
-                    style: TextStyle(
-                      color: _onBadge(item.badgeColor),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                if (item.badgeLabel != null &&
+                    item.badgeLabel!.isNotEmpty &&
+                    item.badgeColor != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: item.badgeColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      item.badgeLabel!,
+                      style: TextStyle(
+                        color: _onBadge(item.badgeColor!),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
+                ] else
+                  const SizedBox(width: 8),
                 Icon(
                   Icons.chevron_right,
                   color: Colors.white.withValues(alpha: 0.28),

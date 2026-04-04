@@ -381,6 +381,7 @@ class _GlobalMicOverlayState extends ConsumerState<GlobalMicOverlay>
                   fontSize: 26,
                   letterSpacing: 0.6,
                   fontFeatures: [FontFeature.tabularFigures()],
+                  decoration: TextDecoration.none,
                 ),
               ),
             ],
@@ -391,6 +392,7 @@ class _GlobalMicOverlayState extends ConsumerState<GlobalMicOverlay>
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.55),
               fontSize: 12,
+              decoration: TextDecoration.none,
             ),
           ),
         ],
@@ -448,6 +450,7 @@ class _GlobalMicOverlayState extends ConsumerState<GlobalMicOverlay>
                     fontSize: 26,
                     letterSpacing: 0.6,
                     fontFeatures: const [FontFeature.tabularFigures()],
+                    decoration: TextDecoration.none,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -457,6 +460,7 @@ class _GlobalMicOverlayState extends ConsumerState<GlobalMicOverlay>
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.55),
                     fontSize: 12,
+                    decoration: TextDecoration.none,
                   ),
                 ),
                 if (progress != null) ...[
