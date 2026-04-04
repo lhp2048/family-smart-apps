@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/shell_screen_header.dart';
 import '../../../shared/providers/debate_ui_providers.dart';
 import '../data/debate_prototype_models.dart';
 
-const Color _kDebateBg = Color(0xFF121218);
 const Color _kCard = Color(0xFF1E1E28);
 const Color _kOrange = Color(0xFFFF9800);
 const Color _kSidebarSelected = Color(0xFF5D4037);
@@ -23,12 +24,16 @@ class DebatePage extends ConsumerWidget {
     final bundle = ref.watch(selectedDebateBundleProvider);
 
     return Scaffold(
-      backgroundColor: _kDebateBg,
+      backgroundColor: AppTheme.shellBackground,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _DebateTopBar(onBack: () => context.pop()),
+            ShellScreenHeader(
+              onBack: () => context.pop(),
+              icon: Icons.forum_rounded,
+              title: '话题辩论',
+            ),
             Expanded(
               child: bundles.isEmpty || bundle == null
                   ? Center(
@@ -106,54 +111,6 @@ class DebatePage extends ConsumerWidget {
   }
 }
 
-class _DebateTopBar extends StatelessWidget {
-  const _DebateTopBar({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 4, 16, 12),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-            color: Colors.white70,
-            onPressed: onBack,
-          ),
-          ShaderMask(
-            blendMode: BlendMode.srcIn,
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [_kOrange, Colors.white],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ).createShader(bounds),
-            child: const Icon(Icons.forum_rounded, size: 28, color: Colors.white),
-          ),
-          const SizedBox(width: 8),
-          ShaderMask(
-            blendMode: BlendMode.srcIn,
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [_kOrange, Color(0xFFFFE0B2)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ).createShader(bounds),
-            child: const Text(
-              '话题辩论',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _HistorySidebar extends StatelessWidget {
   const _HistorySidebar({
     required this.bundles,
@@ -169,17 +126,6 @@ class _HistorySidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-      child: Text(
-        '历史记录',
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.4),
-          fontSize: 12,
-        ),
-      ),
-    );
-
     Widget tile(DebateDayBundle b) {
       final sel = b.bizDate == selectedBizDate;
       final text = debateSidebarLabel(b.bizDate);
@@ -246,32 +192,18 @@ class _HistorySidebar extends StatelessWidget {
     }
 
     if (horizontal) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          label,
-          Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: bundles.length,
-              itemBuilder: (context, i) => tile(bundles[i]),
-            ),
-          ),
-        ],
+      return ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        itemCount: bundles.length,
+        itemBuilder: (context, i) => tile(bundles[i]),
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        label,
-        Expanded(
-          child: ListView.builder(
-            itemCount: bundles.length,
-            itemBuilder: (context, i) => tile(bundles[i]),
-          ),
-        ),
-      ],
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+      itemCount: bundles.length,
+      itemBuilder: (context, i) => tile(bundles[i]),
     );
   }
 }

@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/mock/mock_data_notifier.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/shell_screen_header.dart';
 import '../../../shared/providers/wishwall_ui_providers.dart';
 import '../data/wishwall_prototype_models.dart';
 
-const Color _kWishBg = Color(0xFF12121A);
 const Color _kCardBg = Color(0xFF1E222D);
 const Color _kChipSelected = Color(0xFF7C4DFF);
 const Color _kChipUnselected = Color(0xFF2C2C3E);
@@ -37,36 +38,16 @@ class WishwallPage extends ConsumerWidget {
       return code;
     }
 
-    final subtitle =
-        '${wishwallFilterSubtitleLabel(filterId)} • ${filtered.length} 个';
-
     return Scaffold(
-      backgroundColor: _kWishBg,
+      backgroundColor: AppTheme.shellBackground,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 12, 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                    color: Colors.white70,
-                    onPressed: () => context.pop(),
-                  ),
-                  const Icon(Icons.star_rounded, color: Colors.white, size: 28),
-                  const SizedBox(width: 8),
-                  const Text(
-                    '心愿墙',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
+            ShellScreenHeader(
+              onBack: () => context.pop(),
+              icon: Icons.star_rounded,
+              title: '心愿墙',
             ),
             SizedBox(
               height: 44,
@@ -123,16 +104,6 @@ class WishwallPage extends ConsumerWidget {
                     ),
                   );
                 },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              child: Text(
-                subtitle,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.45),
-                  fontSize: 13,
-                ),
               ),
             ),
             Expanded(

@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/shell_screen_header.dart';
 import '../../../shared/providers/extracurricular_ui_providers.dart';
 import '../data/extracurricular_models.dart';
 
-const Color _kExBg = Color(0xFF0E0E10);
 const Color _kCard = Color(0xFF1A1A1F);
 const Color _kCardTop = Color(0xFF2A2A30);
 const Color _kSelectedRed = Color(0xFF5C1F1F);
@@ -54,43 +55,15 @@ class ExtracurricularPage extends ConsumerWidget {
     final items = ref.watch(filteredExtracurricularItemsProvider);
 
     return Scaffold(
-      backgroundColor: _kExBg,
+      backgroundColor: AppTheme.shellBackground,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 8, 12),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                    color: Colors.white70,
-                    onPressed: () => context.pop(),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.auto_stories_rounded,
-                              color: _kPinkAccent, size: 26),
-                          SizedBox(width: 8),
-                          Text(
-                            '精彩课外',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
+            ShellScreenHeader(
+              onBack: () => context.pop(),
+              icon: Icons.auto_stories_rounded,
+              title: '精彩课外',
             ),
             Expanded(
               child: LayoutBuilder(
@@ -134,26 +107,22 @@ class ExtracurricularPage extends ConsumerWidget {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SizedBox(
-                        height: 200,
-                        child: _TypeSidebar(
-                          entries: _sidebarEntries,
-                          selectedFilter: filter,
-                          unwatchedOnly: unwatchedOnly,
-                          scrollableHorizontal: true,
-                          onFilter: (id) {
-                            ref
-                                .read(extracurricularFilterIdProvider.notifier)
-                                .state = id;
-                          },
-                          onUnwatchedChanged: (v) {
-                            ref
-                                .read(
-                                    extracurricularUnwatchedOnlyProvider
-                                        .notifier)
-                                .state = v;
-                          },
-                        ),
+                      _TypeSidebar(
+                        entries: _sidebarEntries,
+                        selectedFilter: filter,
+                        unwatchedOnly: unwatchedOnly,
+                        scrollableHorizontal: true,
+                        onFilter: (id) {
+                          ref
+                              .read(extracurricularFilterIdProvider.notifier)
+                              .state = id;
+                        },
+                        onUnwatchedChanged: (v) {
+                          ref
+                              .read(
+                                  extracurricularUnwatchedOnlyProvider.notifier)
+                              .state = v;
+                        },
                       ),
                       Divider(
                         height: 1,
@@ -256,17 +225,6 @@ class _TypeSidebar extends StatelessWidget {
       ),
     );
 
-    final typeTitle = Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-      child: Text(
-        '类型筛选',
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.45),
-          fontSize: 12,
-        ),
-      ),
-    );
-
     final watchTitle = Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
       child: Text(
@@ -280,9 +238,9 @@ class _TypeSidebar extends StatelessWidget {
 
     if (scrollableHorizontal) {
       return Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          typeTitle,
           filterSection,
           watchTitle,
           watchRow,
@@ -293,7 +251,6 @@ class _TypeSidebar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        typeTitle,
         Expanded(child: filterSection),
         watchTitle,
         watchRow,

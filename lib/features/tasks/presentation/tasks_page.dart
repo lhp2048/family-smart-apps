@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/shell_screen_header.dart';
 import '../../../core/mock/mock_data_notifier.dart';
 import '../../../core/widgets/app_empty.dart';
 import '../../../shared/models/member_entity.dart';
@@ -11,7 +13,6 @@ import '../../../shared/providers/task_ui_providers.dart';
 import '../data/models/task_date_entity.dart';
 import '../data/models/task_item_entity.dart';
 
-const Color _kHomeworkBg = Color(0xFF151525);
 const Color _kAccentPurple = Color(0xFF7C4DFF);
 const Color _kCardBg = Color(0xFF252536);
 const Color _kProgressFill = Color(0xFFB388FF);
@@ -47,17 +48,17 @@ class TasksPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(selectedTaskBizDateProvider);
     final dates = ref.watch(taskDatesProvider);
-    final children = ref.watch(homeworkChildrenProvider);
-    final items = ref.watch(flatHomeworkItemsForDateProvider(selected));
-    final selDates = dates.where((d) => d.bizDate == selected);
-    final weekday = selDates.isEmpty ? '' : selDates.first.weekday;
 
     return Scaffold(
-      backgroundColor: _kHomeworkBg,
+      backgroundColor: AppTheme.shellBackground,
       body: SafeArea(
         child: Column(
           children: [
-            _HomeworkAppHeader(onBack: () => context.pop()),
+            ShellScreenHeader(
+              onBack: () => context.pop(),
+              icon: Icons.layers_rounded,
+              title: '作业完成情况',
+            ),
             Expanded(
               child: dates.isEmpty
                   ? const AppEmpty(message: '暂无作业日期数据')
@@ -86,12 +87,7 @@ class TasksPage extends ConsumerWidget {
                                 color: Colors.white.withValues(alpha: 0.08),
                               ),
                               Expanded(
-                                child: _HomeworkMainPanel(
-                                  dateTitle: _mainDateTitle(selected, weekday),
-                                  items: items,
-                                  children: children,
-                                  selectedBizDate: selected,
-                                ),
+                                child: _HomeworkDateSwipePanel(dates: dates),
                               ),
                             ],
                           );
@@ -100,7 +96,7 @@ class TasksPage extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             SizedBox(
-                              height: 96,
+                              height: 80,
                               child: _HistorySidebar(
                                 dates: dates,
                                 selectedBizDate: selected,
@@ -117,12 +113,7 @@ class TasksPage extends ConsumerWidget {
                               color: Colors.white.withValues(alpha: 0.08),
                             ),
                             Expanded(
-                              child: _HomeworkMainPanel(
-                                dateTitle: _mainDateTitle(selected, weekday),
-                                items: items,
-                                children: children,
-                                selectedBizDate: selected,
-                              ),
+                              child: _HomeworkDateSwipePanel(dates: dates),
                             ),
                           ],
                         );
@@ -136,73 +127,90 @@ class TasksPage extends ConsumerWidget {
   }
 }
 
-class _HomeworkAppHeader extends StatelessWidget {
-  const _HomeworkAppHeader({required this.onBack});
+class _HomeworkDateSwipePanel extends ConsumerStatefulWidget {
+  const _HomeworkDateSwipePanel({required this.dates});
 
-  final VoidCallback onBack;
+  final List<TaskDateEntity> dates;
+
+  @override
+  ConsumerState<_HomeworkDateSwipePanel> createState() =>
+      _HomeworkDateSwipePanelState();
+}
+
+class _HomeworkDateSwipePanelState
+    extends ConsumerState<_HomeworkDateSwipePanel> {
+  late final PageController _pageController;
+
+  int _indexForSelected() {
+    final sel = ref.read(selectedTaskBizDateProvider);
+    final i = widget.dates.indexWhere((d) => d.bizDate == sel);
+    return i >= 0 ? i : 0;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _indexForSelected());
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeworkDateSwipePanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dates.length != widget.dates.length &&
+        _pageController.hasClients) {
+      final i = _indexForSelected().clamp(0, widget.dates.length - 1);
+      _pageController.jumpToPage(i);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(4, 8, 16, 20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF2D2654),
-            Color(0xFF1A1A2E),
-          ],
-        ),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.layers_rounded,
-                color: Colors.white.withValues(alpha: 0.95),
-                size: 32,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                '作业完成情况',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '全部历史记录',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-          Positioned(
-            left: 0,
-            top: 0,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded),
-              color: Colors.white70,
-              onPressed: onBack,
-            ),
-          ),
-        ],
-      ),
+    final dates = widget.dates;
+
+    ref.listen<String>(selectedTaskBizDateProvider, (previous, next) {
+      final i = dates.indexWhere((d) => d.bizDate == next);
+      if (i < 0 || !_pageController.hasClients) return;
+      final page = _pageController.page;
+      if (page == null) return;
+      if (page.round() != i) {
+        _pageController.animateToPage(
+          i,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+
+    final childrenList = ref.watch(homeworkChildrenProvider);
+
+    return PageView.builder(
+      controller: _pageController,
+      itemCount: dates.length,
+      onPageChanged: (i) {
+        final bd = dates[i].bizDate;
+        ref.read(selectedTaskBizDateProvider.notifier).state = bd;
+      },
+      itemBuilder: (context, i) {
+        final d = dates[i];
+        final items = ref.watch(flatHomeworkItemsForDateProvider(d.bizDate));
+        return _HomeworkMainPanel(
+          dateTitle: _mainDateTitle(d.bizDate, d.weekday),
+          items: items,
+          children: childrenList,
+          selectedBizDate: d.bizDate,
+        );
+      },
     );
   }
 }
 
-class _HistorySidebar extends ConsumerWidget {
+class _HistorySidebar extends ConsumerStatefulWidget {
   const _HistorySidebar({
     required this.dates,
     required this.selectedBizDate,
@@ -216,33 +224,62 @@ class _HistorySidebar extends ConsumerWidget {
   final bool horizontal;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final label = Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: Text(
-        '历史记录',
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.45),
-          fontSize: 12,
-        ),
-      ),
-    );
+  ConsumerState<_HistorySidebar> createState() => _HistorySidebarState();
+}
+
+class _HistorySidebarState extends ConsumerState<_HistorySidebar> {
+  final GlobalKey _selectedVisibleKey = GlobalKey(debugLabel: 'taskDateSelected');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollSelectedIntoView());
+  }
+
+  @override
+  void didUpdateWidget(covariant _HistorySidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedBizDate != widget.selectedBizDate) {
+      _scrollSelectedIntoView();
+    }
+  }
+
+  void _scrollSelectedIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _selectedVisibleKey.currentContext;
+      if (ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+        alignment: widget.horizontal ? 0.5 : 0.25,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dates = widget.dates;
+    final horizontal = widget.horizontal;
 
     Widget tile(int index) {
       final d = dates[index];
       final bd = d.bizDate;
       final wd = d.weekday;
-      final sel = bd == selectedBizDate;
+      final sel = bd == widget.selectedBizDate;
       final allDone = ref.watch(homeworkDayAllDoneProvider(bd));
 
       return Padding(
+        key: sel ? _selectedVisibleKey : ValueKey<String>('taskDate_$bd'),
         padding: horizontal
             ? const EdgeInsets.only(left: 10, right: 4, top: 8, bottom: 8)
             : const EdgeInsets.fromLTRB(10, 0, 10, 8),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => onSelect(bd),
+            onTap: () => widget.onSelect(bd),
             borderRadius: BorderRadius.circular(14),
             child: Ink(
               decoration: BoxDecoration(
@@ -316,32 +353,18 @@ class _HistorySidebar extends ConsumerWidget {
     }
 
     if (horizontal) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          label,
-          Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: dates.length,
-              itemBuilder: (context, i) => tile(i),
-            ),
-          ),
-        ],
+      return ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        itemCount: dates.length,
+        itemBuilder: (context, i) => tile(i),
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        label,
-        Expanded(
-          child: ListView.builder(
-            itemCount: dates.length,
-            itemBuilder: (context, i) => tile(i),
-          ),
-        ),
-      ],
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+      itemCount: dates.length,
+      itemBuilder: (context, i) => tile(i),
     );
   }
 }

@@ -117,10 +117,10 @@ class DashboardPage extends ConsumerWidget {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 10),
                             ...mock.dashboardLifeMenu.map(
                               (e) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.only(bottom: 8),
                                 child: _LifeMenuCard(
                                   item: e,
                                   onTap: () => context.push(e.route),
@@ -136,10 +136,10 @@ class DashboardPage extends ConsumerWidget {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 10),
                             ...mock.dashboardSystemMenu.map(
                               (e) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.only(bottom: 8),
                                 child: _LifeMenuCard(
                                   item: e,
                                   onTap: () => context.push(e.route),
@@ -446,38 +446,39 @@ class _LifeMenuCard extends StatelessWidget {
             border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             child: Row(
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: item.iconBackground,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(item.icon, color: Colors.white, size: 26),
+                  child: Icon(item.icon, color: Colors.white, size: 22),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         item.title,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         item.subtitle,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.5),
-                          fontSize: 13,
-                          height: 1.25,
+                          fontSize: 12,
+                          height: 1.2,
                         ),
                       ),
                     ],
@@ -489,8 +490,8 @@ class _LifeMenuCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
+                      horizontal: 8,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: item.badgeColor,

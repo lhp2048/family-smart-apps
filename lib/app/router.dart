@@ -52,8 +52,10 @@ GoRouter createAppRouter() {
       GoRoute(
         path: '/english-bonus',
         name: 'englishBonus',
-        builder: (context, state) =>
-            const ComingSoonPage(title: '英语加分区'),
+        builder: (context, state) => const ComingSoonPage(
+              title: '加分提升',
+              icon: Icons.edit_note_rounded,
+            ),
       ),
       GoRoute(
         path: '/extra-curricular',

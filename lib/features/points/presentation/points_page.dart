@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/shell_screen_header.dart';
 import '../../../shared/models/member_entity.dart';
 import '../../../shared/providers/points_ui_providers.dart';
 import '../../../shared/providers/task_ui_providers.dart';
 import '../data/points_prototype_models.dart';
 
-const Color _kPointsBg = Color(0xFF151525);
 const Color _kGold = Color(0xFFE6C358);
 const Color _kGreenPoints = Color(0xFF69F0AE);
 const Color _kPinkBadge = Color(0xFFFF8BC4);
@@ -21,18 +22,21 @@ class PointsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cycles = ref.watch(pointsWeekCyclesProvider);
     final selectedId = ref.watch(selectedPointsWeekIdProvider);
-    final week = ref.watch(selectedPointsWeekProvider);
     final rules = ref.watch(pointsRulesProvider);
     final children = ref.watch(homeworkChildrenProvider);
 
     return Scaffold(
-      backgroundColor: _kPointsBg,
+      backgroundColor: AppTheme.shellBackground,
       body: SafeArea(
         child: Column(
           children: [
-            _PointsHeader(onBack: () => context.pop()),
+            ShellScreenHeader(
+              onBack: () => context.pop(),
+              icon: Icons.emoji_events_rounded,
+              title: '积分榜',
+            ),
             Expanded(
-              child: cycles.isEmpty || week == null
+              child: cycles.isEmpty
                   ? Center(
                       child: Text(
                         '暂无积分数据',
@@ -68,8 +72,8 @@ class PointsPage extends ConsumerWidget {
                                 color: Colors.white.withValues(alpha: 0.08),
                               ),
                               Expanded(
-                                child: _PointsMainContent(
-                                  week: week,
+                                child: _PointsWeekSwipePanel(
+                                  cycles: cycles,
                                   rules: rules,
                                   children: children,
                                 ),
@@ -80,9 +84,8 @@ class PointsPage extends ConsumerWidget {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // 历史周期横滑条：标签 + 卡片两行内容在部分字体度量下会略超固定高度，留足余量避免 1px overflow
                             SizedBox(
-                              height: 118,
+                              height: 96,
                               child: _WeekSidebar(
                                 cycles: cycles,
                                 selectedId: selectedId,
@@ -101,8 +104,8 @@ class PointsPage extends ConsumerWidget {
                               color: Colors.white.withValues(alpha: 0.08),
                             ),
                             Expanded(
-                              child: _PointsMainContent(
-                                week: week,
+                              child: _PointsWeekSwipePanel(
+                                cycles: cycles,
                                 rules: rules,
                                 children: children,
                               ),
@@ -119,73 +122,89 @@ class PointsPage extends ConsumerWidget {
   }
 }
 
-class _PointsHeader extends StatelessWidget {
-  const _PointsHeader({required this.onBack});
+class _PointsWeekSwipePanel extends ConsumerStatefulWidget {
+  const _PointsWeekSwipePanel({
+    required this.cycles,
+    required this.rules,
+    required this.children,
+  });
 
-  final VoidCallback onBack;
+  final List<PointsWeekCycle> cycles;
+  final List<PointsRuleLine> rules;
+  final List<MemberEntity> children;
+
+  @override
+  ConsumerState<_PointsWeekSwipePanel> createState() =>
+      _PointsWeekSwipePanelState();
+}
+
+class _PointsWeekSwipePanelState extends ConsumerState<_PointsWeekSwipePanel> {
+  late final PageController _pageController;
+
+  int _indexForSelected() {
+    final id = ref.read(selectedPointsWeekIdProvider);
+    final i = widget.cycles.indexWhere((c) => c.id == id);
+    return i >= 0 ? i : 0;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _indexForSelected());
+  }
+
+  @override
+  void didUpdateWidget(covariant _PointsWeekSwipePanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cycles.length != widget.cycles.length &&
+        _pageController.hasClients) {
+      final i = _indexForSelected().clamp(0, widget.cycles.length - 1);
+      _pageController.jumpToPage(i);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(4, 8, 16, 20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF2D2654),
-            Color(0xFF1A1A2E),
-          ],
-        ),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.emoji_events_rounded,
-                color: Colors.white.withValues(alpha: 0.95),
-                size: 32,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                '积分榜',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '以周为单位，初始 $_kInitialPoints 分',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-          Positioned(
-            left: 0,
-            top: 0,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded),
-              color: Colors.white70,
-              onPressed: onBack,
-            ),
-          ),
-        ],
-      ),
+    final cycles = widget.cycles;
+
+    ref.listen<String>(selectedPointsWeekIdProvider, (previous, next) {
+      final i = cycles.indexWhere((c) => c.id == next);
+      if (i < 0 || !_pageController.hasClients) return;
+      final page = _pageController.page;
+      if (page == null) return;
+      if (page.round() != i) {
+        _pageController.animateToPage(
+          i,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+
+    return PageView.builder(
+      controller: _pageController,
+      itemCount: cycles.length,
+      onPageChanged: (i) {
+        ref.read(selectedPointsWeekIdProvider.notifier).state = cycles[i].id;
+      },
+      itemBuilder: (context, i) {
+        return _PointsMainContent(
+          week: cycles[i],
+          rules: widget.rules,
+          children: widget.children,
+        );
+      },
     );
   }
 }
 
-class _WeekSidebar extends StatelessWidget {
+class _WeekSidebar extends ConsumerStatefulWidget {
   const _WeekSidebar({
     required this.cycles,
     required this.selectedId,
@@ -201,29 +220,58 @@ class _WeekSidebar extends StatelessWidget {
   final bool horizontal;
 
   @override
+  ConsumerState<_WeekSidebar> createState() => _WeekSidebarState();
+}
+
+class _WeekSidebarState extends ConsumerState<_WeekSidebar> {
+  final GlobalKey _selectedVisibleKey = GlobalKey(debugLabel: 'pointsWeekSelected');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollSelectedIntoView());
+  }
+
+  @override
+  void didUpdateWidget(covariant _WeekSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedId != widget.selectedId) {
+      _scrollSelectedIntoView();
+    }
+  }
+
+  void _scrollSelectedIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _selectedVisibleKey.currentContext;
+      if (ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+        alignment: widget.horizontal ? 0.5 : 0.25,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final label = Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-      child: Text(
-        '历史周期',
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.45),
-          fontSize: 12,
-        ),
-      ),
-    );
+    final cycles = widget.cycles;
+    final horizontal = widget.horizontal;
 
     Widget miniScores(PointsWeekCycle c) {
+      final ch = widget.children;
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (var i = 0; i < children.length; i++) ...[
+          for (var i = 0; i < ch.length; i++) ...[
             if (i > 0) const SizedBox(width: 8),
             Icon(Icons.monetization_on_rounded,
                 size: 14, color: Colors.amber.shade300),
             const SizedBox(width: 2),
             Text(
-              '${c.totalsByMemberCode[children[i].memberCode] ?? 0}',
+              '${c.totalsByMemberCode[ch[i].memberCode] ?? 0}',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.85),
                 fontSize: 12,
@@ -237,15 +285,16 @@ class _WeekSidebar extends StatelessWidget {
 
     Widget tile(int index) {
       final c = cycles[index];
-      final sel = c.id == selectedId;
+      final sel = c.id == widget.selectedId;
       return Padding(
+        key: sel ? _selectedVisibleKey : ValueKey<String>('pointsWeek_${c.id}'),
         padding: horizontal
             ? const EdgeInsets.only(left: 10, right: 4, top: 6, bottom: 8)
             : const EdgeInsets.fromLTRB(10, 0, 10, 8),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => onSelect(c.id),
+            onTap: () => widget.onSelect(c.id),
             borderRadius: BorderRadius.circular(14),
             child: Ink(
               decoration: BoxDecoration(
@@ -354,32 +403,18 @@ class _WeekSidebar extends StatelessWidget {
     }
 
     if (horizontal) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          label,
-          Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: cycles.length,
-              itemBuilder: (context, i) => tile(i),
-            ),
-          ),
-        ],
+      return ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        itemCount: cycles.length,
+        itemBuilder: (context, i) => tile(i),
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        label,
-        Expanded(
-          child: ListView.builder(
-            itemCount: cycles.length,
-            itemBuilder: (context, i) => tile(i),
-          ),
-        ),
-      ],
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+      itemCount: cycles.length,
+      itemBuilder: (context, i) => tile(i),
     );
   }
 }
@@ -433,8 +468,6 @@ class _PointsMainContent extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        _RulesCard(rules: rules),
-        const SizedBox(height: 20),
         _WeeklySummaryCard(week: week, children: children),
         const SizedBox(height: 22),
         Text(
@@ -466,6 +499,8 @@ class _PointsMainContent extends StatelessWidget {
               child: _DayLogCard(group: g, children: children),
             ),
           ),
+        const SizedBox(height: 24),
+        _RulesCard(rules: rules),
       ],
     );
   }
@@ -502,7 +537,16 @@ class _RulesCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          Text(
+            '以周为单位，初始 $_kInitialPoints 分。',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
           ...rules.map(
             (r) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -573,7 +617,7 @@ class _WeeklySummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '🏆 $title（初始 $_kInitialPoints 分）',
+            '🏆 $title',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 16,

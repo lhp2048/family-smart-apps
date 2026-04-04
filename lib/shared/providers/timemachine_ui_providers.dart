@@ -8,14 +8,32 @@ final timemachineEntriesProvider = Provider<List<TimemachineEntry>>((ref) {
   return ref.watch(mockDataNotifierProvider).timemachineEntries;
 });
 
-/// `null` 表示「全部」
+/// `null` 表示未选具体日；与 [timemachineSelectedMonthKeyProvider] 配合筛范围
 final timemachineSelectedBizDateProvider = StateProvider<String?>((ref) => null);
+
+/// `null` 表示「全部」；非空为 yyyy-MM，展示该月全部或配合选中日
+final timemachineSelectedMonthKeyProvider = StateProvider<String?>((ref) => null);
 
 String timemachineSidebarDayLabel(String bizDate) {
   final d = DateTime.parse(bizDate);
   final mm = d.month.toString().padLeft(2, '0');
   final dd = d.day.toString().padLeft(2, '0');
   return '$mm-$dd ${weekdayCn(d)}';
+}
+
+/// 第一行年月 chip 文案，如 26年3月
+String timemachineMonthChipLabel(String monthKey) {
+  final parts = monthKey.split('-');
+  if (parts.length != 2) return monthKey;
+  final y = int.tryParse(parts[0]) ?? 0;
+  final m = int.tryParse(parts[1]) ?? 0;
+  return '${y % 100}年$m月';
+}
+
+/// 第二行：某日（已在某月下）
+String timemachineSecondRowDayLabel(String bizDate) {
+  final d = DateTime.parse(bizDate);
+  return '${d.day}日 ${weekdayCn(d)}';
 }
 
 String timemachineMonthSectionLabel(String bizDate) {
@@ -30,43 +48,49 @@ String timemachineCardPillLabel(String bizDate) {
   return '$m月$day日';
 }
 
-final timemachineSidebarSectionsProvider =
-    Provider<List<TimemachineSidebarSection>>((ref) {
+/// 第一行：有数据的月份（新→旧）
+final timemachineSidebarMonthsProvider =
+    Provider<List<TimemachineMonthChip>>((ref) {
   final all = ref.watch(timemachineEntriesProvider);
   if (all.isEmpty) return [];
 
+  final monthTotals = <String, int>{};
+  for (final e in all) {
+    if (e.bizDate.length < 7) continue;
+    final mk = e.bizDate.substring(0, 7);
+    monthTotals[mk] = (monthTotals[mk] ?? 0) + 1;
+  }
+  final keys = monthTotals.keys.toList()..sort((a, b) => b.compareTo(a));
+  return keys
+      .map(
+        (k) => TimemachineMonthChip(
+          monthKey: k,
+          label: timemachineMonthChipLabel(k),
+          entryCount: monthTotals[k]!,
+        ),
+      )
+      .toList();
+});
+
+/// 当前选中月下、有数据的日期（第二行）
+final timemachineSecondRowDaysProvider =
+    Provider<List<TimemachineSidebarDay>>((ref) {
+  final mk = ref.watch(timemachineSelectedMonthKeyProvider);
+  if (mk == null) return [];
+  final all = ref.watch(timemachineEntriesProvider);
   final byDay = <String, int>{};
   for (final e in all) {
-    byDay[e.bizDate] = (byDay[e.bizDate] ?? 0) + 1;
+    if (e.bizDate.length >= 7 && e.bizDate.substring(0, 7) == mk) {
+      byDay[e.bizDate] = (byDay[e.bizDate] ?? 0) + 1;
+    }
   }
-  final days = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
-
-  final monthToDays = <String, List<String>>{};
-  for (final bd in days) {
-    final mk = timemachineMonthSectionLabel(bd);
-    monthToDays.putIfAbsent(mk, () => []).add(bd);
-  }
-
-  final monthKeys = monthToDays.keys.toList();
-  monthKeys.sort((a, b) {
-    final da = monthToDays[a]!.first;
-    final db = monthToDays[b]!.first;
-    return db.compareTo(da);
-  });
-
-  return monthKeys
+  final ordered = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
+  return ordered
       .map(
-        (mk) => TimemachineSidebarSection(
-          monthLabel: mk,
-          days: monthToDays[mk]!
-              .map(
-                (bd) => TimemachineSidebarDay(
-                  bizDate: bd,
-                  label: timemachineSidebarDayLabel(bd),
-                  entryCount: byDay[bd]!,
-                ),
-              )
-              .toList(),
+        (bd) => TimemachineSidebarDay(
+          bizDate: bd,
+          label: timemachineSecondRowDayLabel(bd),
+          entryCount: byDay[bd]!,
         ),
       )
       .toList();
@@ -75,9 +99,21 @@ final timemachineSidebarSectionsProvider =
 final filteredTimemachineEntriesProvider =
     Provider<List<TimemachineEntry>>((ref) {
   final all = ref.watch(timemachineEntriesProvider);
-  final sel = ref.watch(timemachineSelectedBizDateProvider);
-  if (sel == null) return List.of(all);
-  return all.where((e) => e.bizDate == sel).toList();
+  final selDay = ref.watch(timemachineSelectedBizDateProvider);
+  final monthKey = ref.watch(timemachineSelectedMonthKeyProvider);
+  if (selDay != null) {
+    return all.where((e) => e.bizDate == selDay).toList();
+  }
+  if (monthKey != null) {
+    return all
+        .where(
+          (e) =>
+              e.bizDate.length >= 7 &&
+              e.bizDate.substring(0, 7) == monthKey,
+        )
+        .toList();
+  }
+  return List.of(all);
 });
 
 /// 主区按月份分组的顺序（月份新到旧）

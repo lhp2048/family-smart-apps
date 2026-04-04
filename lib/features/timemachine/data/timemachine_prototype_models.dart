@@ -13,7 +13,7 @@ class TimemachineEntry {
   final String body;
 }
 
-/// 侧边栏：月份下的日期行
+/// 侧边栏：单日筛选项
 class TimemachineSidebarDay {
   const TimemachineSidebarDay({
     required this.bizDate,
@@ -26,14 +26,17 @@ class TimemachineSidebarDay {
   final int entryCount;
 }
 
-class TimemachineSidebarSection {
-  const TimemachineSidebarSection({
-    required this.monthLabel,
-    required this.days,
+/// 第一行：有数据的年月（monthKey 为 yyyy-MM）
+class TimemachineMonthChip {
+  const TimemachineMonthChip({
+    required this.monthKey,
+    required this.label,
+    required this.entryCount,
   });
 
-  final String monthLabel;
-  final List<TimemachineSidebarDay> days;
+  final String monthKey;
+  final String label;
+  final int entryCount;
 }
 
 /// 主区按月份分组后的块

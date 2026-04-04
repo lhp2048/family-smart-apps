@@ -342,7 +342,7 @@ class MockAppState {
         route: '/debate',
       ),
       const DashboardLifeMenuItem(
-        title: '英语加分区',
+        title: '加分提升',
         subtitle: '训练试卷 · 在线答题',
         icon: Icons.edit_note_rounded,
         iconBackground: Color(0xFF81D4FA),
