@@ -7,7 +7,8 @@ plugins {
 
 android {
     namespace = "com.aihome.family.family_smart_center"
-    compileSdk = flutter.compileSdkVersion
+    // API 31+ 才有 android:attr/lStar；isar_flutter_libs 等在 compileSdk<31 时 release 资源链接会失败（CI 常见）
+    compileSdk = maxOf(flutter.compileSdkVersion, 35)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

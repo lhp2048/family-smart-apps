@@ -1,3 +1,6 @@
+import com.android.build.api.dsl.ApplicationExtension
+import com.android.build.api.dsl.LibraryExtension
+
 allprojects {
     repositories {
         google()
@@ -15,8 +18,13 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+
+// 插件子工程若沿用过低 compileSdk，会出现 resource android:attr/lStar not found
 subprojects {
-    project.evaluationDependsOn(":app")
+    afterEvaluate {
+        extensions.findByType(LibraryExtension::class.java)?.apply { compileSdk = 35 }
+        extensions.findByType(ApplicationExtension::class.java)?.apply { compileSdk = 35 }
+    }
 }
 
 // isar_flutter_libs 3.1.0+1 未声明 namespace，AGP 8+ 会报错（与 Manifest package 一致）
