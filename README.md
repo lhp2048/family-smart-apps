@@ -1,6 +1,6 @@
-# family_smart_center
+# home-bot-app
 
-A new Flutter project.
+家庭智能中心 Flutter 应用（`family_smart_center`）。
 
 ## Getting Started
 
