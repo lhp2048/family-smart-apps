@@ -1,10 +1,7 @@
 name: Flutter CI
 
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+  # 仅手动：仓库 Actions → Flutter CI → Run workflow（不再在 push/PR 时自动跑）
   workflow_dispatch:
 
 concurrency:
