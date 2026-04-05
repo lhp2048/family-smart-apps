@@ -300,7 +300,8 @@ class MockAppState {
       final dayItems = allItems.where((e) => e.bizDate == bd).toList();
       summaries[bd] = HomeSummaryEntity()
         ..bizDate = bd
-        ..taskProgress = computeDayTaskProgress(dayItems)
+        ..taskProgress =
+            computeDayTaskProgress(dayItems, (e) => e.statusByMemberJson)
         ..memberScoresJson = jsonEncode(<String, int>{'xixi': 65, 'chuan': 80})
         ..updatedAt = now;
     }
@@ -787,7 +788,7 @@ class MockAppState {
             .where((e) => e.bizDate == bizDate && e.groupCode == groupCode)
             .toList()
           ..sort((a, b) => a.sort.compareTo(b.sort));
-    final p = computeTaskGroupProgress(list);
+    final p = computeTaskGroupProgress(list, (e) => e.statusByMemberJson);
     return groups.map((g) {
       if (g.bizDate == bizDate && g.groupCode == groupCode) {
         g.progress = p;
@@ -848,7 +849,7 @@ class MockDataNotifier extends Notifier<MockAppState> {
     groups = MockAppState._withGroupProgress(groups, items, bizDate, groupCode);
 
     final dayItems = items.where((e) => e.bizDate == bizDate).toList();
-    final dayP = computeDayTaskProgress(dayItems);
+    final dayP = computeDayTaskProgress(dayItems, (e) => e.statusByMemberJson);
     final summaries = Map<String, HomeSummaryEntity>.from(state.homeSummaries);
     final prev = summaries[bizDate];
     if (prev != null) {

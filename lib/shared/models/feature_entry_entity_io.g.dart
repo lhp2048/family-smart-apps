@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'feature_entry_entity.dart';
+part of 'feature_entry_entity_io.dart';
 
 // **************************************************************************
 // IsarCollectionGenerator

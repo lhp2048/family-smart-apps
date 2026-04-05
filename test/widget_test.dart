@@ -27,6 +27,6 @@ void main() {
       ..completedAtByMemberJson = '{}'
       ..sort = 1
       ..updatedAt = DateTime.now();
-    expect(computeTaskGroupProgress([a]), 0.5);
+    expect(computeTaskGroupProgress([a], (e) => e.statusByMemberJson), 0.5);
   });
 }

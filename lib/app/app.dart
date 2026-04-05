@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_theme.dart';
-import '../features/voice/presentation/global_mic_overlay.dart';
+import '../features/voice/presentation/global_mic_overlay_web.dart'
+    if (dart.library.io) '../features/voice/presentation/global_mic_overlay.dart';
 import 'router.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) => createAppRouter());

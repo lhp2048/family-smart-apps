@@ -1,8 +1,8 @@
 import 'package:isar/isar.dart';
 
 import '../../../core/storage/isar_query_compat.dart';
-import '../../../shared/models/home_summary_entity.dart';
-import '../../tasks/data/models/task_item_entity.dart';
+import '../../../shared/models/home_summary_entity_io.dart';
+import '../../tasks/data/models/task_item_entity_io.dart';
 import '../../tasks/data/task_progress.dart';
 
 class HomeRepository {
@@ -16,7 +16,7 @@ class HomeRepository {
         .filter()
         .bizDateEqualTo(bizDate)
         .findAllCompat();
-    final p = computeDayTaskProgress(items);
+    final p = computeDayTaskProgress(items, (e) => e.statusByMemberJson);
     final existing = await _isar.homeSummaryEntitys
         .filter()
         .bizDateEqualTo(bizDate)

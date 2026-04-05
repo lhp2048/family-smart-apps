@@ -3,14 +3,14 @@ import 'dart:convert';
 import 'package:isar/isar.dart';
 
 import 'isar_query_compat.dart';
-import '../../features/tasks/data/models/task_date_entity.dart';
-import '../../features/tasks/data/models/task_group_entity.dart';
-import '../../features/tasks/data/models/task_item_entity.dart';
+import '../../features/tasks/data/models/task_date_entity_io.dart';
+import '../../features/tasks/data/models/task_group_entity_io.dart';
+import '../../features/tasks/data/models/task_item_entity_io.dart';
 import '../../features/tasks/data/task_keys.dart';
 import '../../features/tasks/data/task_progress.dart';
-import '../../shared/models/feature_entry_entity.dart';
-import '../../shared/models/home_summary_entity.dart';
-import '../../shared/models/member_entity.dart';
+import '../../shared/models/feature_entry_entity_io.dart';
+import '../../shared/models/home_summary_entity_io.dart';
+import '../../shared/models/member_entity_io.dart';
 import '../utils/biz_date.dart';
 
 /// 首次安装写入种子数据（需求文档 §9）
@@ -182,7 +182,7 @@ Future<void> _recalcGroupProgress(
       .groupCodeEqualTo(groupCode)
       .sortBySort()
       .findAllCompat();
-  final p = computeTaskGroupProgress(items);
+  final p = computeTaskGroupProgress(items, (e) => e.statusByMemberJson);
   final key = taskGroupKey(bizDate, groupCode);
   final g = await isar.taskGroupEntitys
       .filter()
@@ -201,7 +201,7 @@ Future<void> _seedHomeSummary(Isar isar, DateTime now) async {
       .filter()
       .bizDateEqualTo(today)
       .findAllCompat();
-  final p = computeDayTaskProgress(items);
+  final p = computeDayTaskProgress(items, (e) => e.statusByMemberJson);
   final scores = jsonEncode(<String, int>{'parent1': 12, 'child1': 48});
   final h = HomeSummaryEntity()
     ..bizDate = today

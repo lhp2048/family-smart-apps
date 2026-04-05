@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'task_item_entity.dart';
+part of 'task_item_entity_io.dart';
 
 // **************************************************************************
 // IsarCollectionGenerator

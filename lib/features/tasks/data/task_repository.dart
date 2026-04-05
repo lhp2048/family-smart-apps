@@ -4,9 +4,9 @@ import 'package:isar/isar.dart';
 
 import '../../../core/storage/isar_query_compat.dart';
 import '../../dashboard/data/home_repository.dart';
-import 'models/task_date_entity.dart';
-import 'models/task_group_entity.dart';
-import 'models/task_item_entity.dart';
+import 'models/task_date_entity_io.dart';
+import 'models/task_group_entity_io.dart';
+import 'models/task_item_entity_io.dart';
 import 'task_keys.dart';
 import 'task_progress.dart';
 
@@ -102,7 +102,7 @@ class TaskRepository {
         .groupCodeEqualTo(groupCode)
         .sortBySort()
         .findAllCompat();
-    final p = computeTaskGroupProgress(items);
+    final p = computeTaskGroupProgress(items, (e) => e.statusByMemberJson);
     final gk = taskGroupKey(bizDate, groupCode);
     final g = await _isar.taskGroupEntitys
         .filter()
