@@ -19,8 +19,15 @@ import '../providers/family_api_base_url_provider.dart';
 /// 使用非 const 的 [EdgeInsets]，避免仅改数字时 Hot Reload 不刷新布局。
 const double _kDashboardHorizontalPadding = 28;
 
-/// 宽屏上内容列最大宽度（超出则水平居中，否则改边距看不出效果）
+/// 窄屏（手机竖屏等）内容列最大宽度
 const double _kDashboardMaxContentWidth = 540;
+
+/// 宽屏 / Web 上内容列最大宽度（与上方取 min，超出则水平居中）
+const double _kDashboardMaxContentWidthLarge = 1200;
+
+/// 视口宽度 ≥ 此值时使用 [_kDashboardMaxContentWidthLarge]。
+/// 须低于常见手机横屏宽度（约 667+），否则横屏仍会被当成「窄屏」而卡在 540。
+const double _kDashboardWideBreakpoint = 560;
 
 const Color _kHomeworkTitle = Color(0xFFC4A7FF);
 const Color _kPointsTitle = Color(0xFFFF8BC4);
@@ -110,10 +117,10 @@ class DashboardPage extends ConsumerWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final maxContentWidth = min(
-              constraints.maxWidth,
-              _kDashboardMaxContentWidth,
-            );
+            final cap = constraints.maxWidth >= _kDashboardWideBreakpoint
+                ? _kDashboardMaxContentWidthLarge
+                : _kDashboardMaxContentWidth;
+            final maxContentWidth = min(constraints.maxWidth, cap);
             final hPad = _kDashboardHorizontalPadding;
 
             return Center(
