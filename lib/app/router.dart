@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../features/dashboard/presentation/coming_soon_page.dart';
 import '../features/dashboard/presentation/dashboard_page.dart';
+import '../features/english_bonus/presentation/english_bonus_page.dart';
+import '../features/english_bonus/presentation/syllable_practice_page.dart';
+import '../features/english_bonus/data/syllable_sheet_preview_args.dart';
+import '../features/english_bonus/presentation/syllable_sheet_preview_page.dart';
 import '../features/dashboard/presentation/settings_page.dart';
 import '../features/debate/presentation/debate_page.dart';
 import '../features/extracurricular/presentation/extracurricular_page.dart';
@@ -52,10 +55,27 @@ GoRouter createAppRouter() {
       GoRoute(
         path: '/english-bonus',
         name: 'englishBonus',
-        builder: (context, state) => const ComingSoonPage(
-              title: '加分提升',
-              icon: Icons.edit_note_rounded,
+        builder: (context, state) => const EnglishBonusPage(),
+      ),
+      GoRoute(
+        path: '/english-bonus/syllable-practice',
+        name: 'englishBonusSyllable',
+        builder: (context, state) => const SyllablePracticePage(),
+      ),
+      GoRoute(
+        path: '/english-bonus/sheet-preview',
+        name: 'englishBonusSheetPreview',
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is SyllableSheetPreviewArgs) {
+            return SyllableSheetPreviewPage.fromArgs(extra);
+          }
+          return const Scaffold(
+            body: Center(
+              child: Text('无效的预览参数'),
             ),
+          );
+        },
       ),
       GoRoute(
         path: '/extra-curricular',

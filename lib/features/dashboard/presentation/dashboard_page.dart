@@ -1,12 +1,18 @@
 import 'dart:async';
 import 'dart:math' show min;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/mock/mock_data_notifier.dart';
+import '../../../shared/providers/task_ui_providers.dart';
+import '../data/dashboard_life_menu_catalog.dart';
 import '../data/dashboard_prototype_models.dart';
+import '../data/family_api_client.dart';
+import '../providers/dashboard_remote_providers.dart';
+import '../providers/family_api_base_url_provider.dart';
 
 /// 主页主内容区左右边距（略大则内容带更「窄」）
 /// 使用非 const 的 [EdgeInsets]，避免仅改数字时 Hot Reload 不刷新布局。
@@ -44,12 +50,57 @@ String _formatHms(DateTime d) {
 Color _onBadge(Color bg) =>
     bg.computeLuminance() > 0.55 ? Colors.black87 : Colors.white;
 
+String _shortDashboardError(Object e) {
+  if (e is FamilyApiException) return e.message;
+  if (e is DioException) {
+    return e.message ?? '网络请求失败';
+  }
+  return '请检查网络与服务地址';
+}
+
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mock = ref.watch(mockDataNotifierProvider);
+    final configured = ref.watch(familyApiIsConfiguredProvider);
+    final homeworkAsync = ref.watch(dashboardHomeworkRowsProvider);
+    final pointsAsync = ref.watch(dashboardPointsRowsProvider);
+    final lifeMenuAsync = ref.watch(dashboardLifeMenuItemsProvider);
+
+    final lifeMenuItems = lifeMenuAsync.when(
+      data: (v) => v,
+      loading: () =>
+          configured ? kDashboardLifeMenuTemplate : mock.dashboardLifeMenu,
+      error: (_, __) =>
+          configured ? kDashboardLifeMenuTemplate : mock.dashboardLifeMenu,
+    );
+
+    Future<void> onPullRefresh() async {
+      ref.invalidate(dashboardHomeworkRowsProvider);
+      ref.invalidate(dashboardPointsRowsProvider);
+      ref.invalidate(dashboardLifeMenuItemsProvider);
+      ref.read(taskRemoteRefreshProvider.notifier).state++;
+      await Future.wait([
+        ref.read(dashboardHomeworkRowsProvider.future),
+        ref.read(dashboardPointsRowsProvider.future),
+        ref.read(dashboardLifeMenuItemsProvider.future),
+      ]);
+    }
+
+    final homeworkRows = homeworkAsync.when(
+      data: (rows) =>
+          rows.isEmpty ? const [DashboardHomeworkRow('暂无数据', '-/-')] : rows,
+      loading: () => const [DashboardHomeworkRow('加载中', '…')],
+      error: (e, _) => [DashboardHomeworkRow('作业卡片', _shortDashboardError(e))],
+    );
+    final pointsRows = pointsAsync.when(
+      data: (rows) =>
+          rows.isEmpty ? const [DashboardPointsRow('暂无数据', 0)] : rows,
+      loading: () => const [DashboardPointsRow('加载中', 0)],
+      error: (e, _) => const [DashboardPointsRow('—', 0)],
+    );
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -62,97 +113,105 @@ class DashboardPage extends ConsumerWidget {
             );
             final hPad = _kDashboardHorizontalPadding;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: SizedBox(
-                    width: maxContentWidth,
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(hPad, 6, hPad, 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const _DashboardHeader(),
-                          const SizedBox(height: 12),
-                          IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  child: _HomeworkSummaryCard(
-                                    rows: mock.dashboardHomeworkRows,
-                                    onTap: () => context.push('/tasks'),
-                                  ),
+            return Center(
+              child: SizedBox(
+                width: maxContentWidth,
+                child: RefreshIndicator(
+                  onRefresh: onPullRefresh,
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(hPad, 6, hPad, 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const _DashboardHeader(),
+                              const SizedBox(height: 12),
+                              IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Expanded(
+                                      child: _HomeworkSummaryCard(
+                                        rows: homeworkRows,
+                                        onTap: () => context.push('/tasks'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _PointsSummaryCard(
+                                        rows: pointsRows,
+                                        subtitle:
+                                            pointsAsync.hasError &&
+                                                pointsAsync.error != null
+                                            ? _shortDashboardError(
+                                                pointsAsync.error!,
+                                              )
+                                            : null,
+                                        onTap: () => context.push('/points'),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _PointsSummaryCard(
-                                    rows: mock.dashboardPointsRows,
-                                    onTap: () => context.push('/points'),
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Center(
-                    child: SizedBox(
-                      width: maxContentWidth,
-                      child: SingleChildScrollView(
-                        padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              '学习和生活',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.85),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            ...mock.dashboardLifeMenu.map(
-                              (e) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: _LifeMenuCard(
-                                  item: e,
-                                  onTap: () => context.push(e.route),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-                            Text(
-                              '系统和配置',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.85),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            ...mock.dashboardSystemMenu.map(
-                              (e) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: _LifeMenuCard(
-                                  item: e,
-                                  onTap: () => context.push(e.route),
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                       ),
-                    ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                '学习和生活',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              ...lifeMenuItems.map(
+                                (e) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: _LifeMenuCard(
+                                    item: e,
+                                    onTap: () => context.push(e.route),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                              Text(
+                                '系统和配置',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              ...mock.dashboardSystemMenu.map(
+                                (e) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: _LifeMenuCard(
+                                    item: e,
+                                    onTap: () => context.push(e.route),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             );
           },
         ),
@@ -256,10 +315,7 @@ class _DashboardHeaderState extends State<_DashboardHeader> {
 }
 
 class _HomeworkSummaryCard extends StatelessWidget {
-  const _HomeworkSummaryCard({
-    required this.rows,
-    required this.onTap,
-  });
+  const _HomeworkSummaryCard({required this.rows, required this.onTap});
 
   final List<DashboardHomeworkRow> rows;
   final VoidCallback onTap;
@@ -312,19 +368,30 @@ class _HomeworkSummaryCard extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Row(
                       children: [
-                        Text(
-                          r.name,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 13,
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            r.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                        const Spacer(),
-                        Text(
-                          r.progressText,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.45),
-                            fontSize: 13,
+                        const SizedBox(width: 6),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            r.progressText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.45),
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ],
@@ -344,10 +411,12 @@ class _PointsSummaryCard extends StatelessWidget {
   const _PointsSummaryCard({
     required this.rows,
     required this.onTap,
+    this.subtitle,
   });
 
   final List<DashboardPointsRow> rows;
   final VoidCallback onTap;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -392,19 +461,36 @@ class _PointsSummaryCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
+                if (subtitle != null && subtitle!.isNotEmpty) ...[
+                  Text(
+                    subtitle!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.redAccent.withValues(alpha: 0.9),
+                      fontSize: 11,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                ],
                 ...rows.map(
                   (r) => Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Row(
                       children: [
-                        Text(
-                          r.name,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 13,
+                        Expanded(
+                          child: Text(
+                            r.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 6),
                         Text(
                           '${r.score} 分',
                           style: const TextStyle(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/dashboard/data/dashboard_prototype_models.dart';
+import '../../features/english_bonus/data/syllable_generated_sheet_record.dart';
 import '../../features/debate/data/debate_prototype_models.dart';
 import '../../features/extracurricular/data/extracurricular_models.dart';
 import '../../features/points/data/points_prototype_models.dart';
@@ -38,6 +39,7 @@ class MockAppState {
     required this.timemachineEntries,
     required this.debateDayBundles,
     required this.extracurricularItems,
+    required this.syllableGeneratedSheets,
   });
 
   final Map<String, HomeSummaryEntity> homeSummaries;
@@ -59,6 +61,7 @@ class MockAppState {
   final List<PointsRuleLine> pointsRules;
   final List<PointsWeekCycle> pointsWeekCycles;
 
+  /// 心愿墙详情页用；首页展示主副标题与箭头旁角标「未来」，不展示列表摘要。
   final List<WishwallItem> wishwallItems;
 
   final List<TimemachineEntry> timemachineEntries;
@@ -66,6 +69,9 @@ class MockAppState {
   final List<DebateDayBundle> debateDayBundles;
 
   final List<ExtracurricularItem> extracurricularItems;
+
+  /// 已生成的音节练习卷（仅包含有记录的日期；后台生成后写入）
+  final List<SyllableGeneratedSheetRecord> syllableGeneratedSheets;
 
   MockAppState copyWith({
     Map<String, HomeSummaryEntity>? homeSummaries,
@@ -84,6 +90,7 @@ class MockAppState {
     List<TimemachineEntry>? timemachineEntries,
     List<DebateDayBundle>? debateDayBundles,
     List<ExtracurricularItem>? extracurricularItems,
+    List<SyllableGeneratedSheetRecord>? syllableGeneratedSheets,
   }) {
     return MockAppState(
       homeSummaries: homeSummaries ?? this.homeSummaries,
@@ -96,14 +103,15 @@ class MockAppState {
           dashboardHomeworkRows ?? this.dashboardHomeworkRows,
       dashboardPointsRows: dashboardPointsRows ?? this.dashboardPointsRows,
       dashboardLifeMenu: dashboardLifeMenu ?? this.dashboardLifeMenu,
-      dashboardSystemMenu:
-          dashboardSystemMenu ?? this.dashboardSystemMenu,
+      dashboardSystemMenu: dashboardSystemMenu ?? this.dashboardSystemMenu,
       pointsRules: pointsRules ?? this.pointsRules,
       pointsWeekCycles: pointsWeekCycles ?? this.pointsWeekCycles,
       wishwallItems: wishwallItems ?? this.wishwallItems,
       timemachineEntries: timemachineEntries ?? this.timemachineEntries,
       debateDayBundles: debateDayBundles ?? this.debateDayBundles,
       extracurricularItems: extracurricularItems ?? this.extracurricularItems,
+      syllableGeneratedSheets:
+          syllableGeneratedSheets ?? this.syllableGeneratedSheets,
     );
   }
 
@@ -224,7 +232,7 @@ class MockAppState {
     const homeworkTaskDefs = <(String, String)>[
       ('t1', '学校作业'),
       ('t2', '学习机同步练习'),
-      ('t3', '英语音标练习'),
+      ('t3', '英语音节练习'),
       ('t4', '数学思维训练'),
       ('t5', '语文阅读打卡'),
       ('t6', '科学小实验'),
@@ -300,8 +308,10 @@ class MockAppState {
       final dayItems = allItems.where((e) => e.bizDate == bd).toList();
       summaries[bd] = HomeSummaryEntity()
         ..bizDate = bd
-        ..taskProgress =
-            computeDayTaskProgress(dayItems, (e) => e.statusByMemberJson)
+        ..taskProgress = computeDayTaskProgress(
+          dayItems,
+          (e) => e.statusByMemberJson,
+        )
         ..memberScoresJson = jsonEncode(<String, int>{'xixi': 65, 'chuan': 80})
         ..updatedAt = now;
     }
@@ -317,10 +327,10 @@ class MockAppState {
     final lifeMenu = <DashboardLifeMenuItem>[
       const DashboardLifeMenuItem(
         title: '心愿墙',
-        subtitle: '许下心愿 · 记录美好期待',
+        subtitle: '许下心愿 · 美好期待',
         icon: Icons.star_rounded,
         iconBackground: Color(0xFFFFCA28),
-        badgeLabel: '2 待实现',
+        badgeLabel: '未来',
         badgeColor: Color(0xFF7C4DFF),
         route: '/wishwall',
       ),
@@ -343,8 +353,8 @@ class MockAppState {
         route: '/debate',
       ),
       const DashboardLifeMenuItem(
-        title: '加分提升',
-        subtitle: '训练试卷 · 在线答题',
+        title: '加分提分',
+        subtitle: '练习纸 · 音节训练等',
         icon: Icons.edit_note_rounded,
         iconBackground: Color(0xFF81D4FA),
         badgeLabel: '练习',
@@ -760,6 +770,7 @@ class MockAppState {
       timemachineEntries: timemachineEntries,
       debateDayBundles: debateDayBundles,
       extracurricularItems: extracurricularItems,
+      syllableGeneratedSheets: const [],
     );
   }
 
@@ -871,6 +882,28 @@ class MockDataNotifier extends Notifier<MockAppState> {
       taskGroups: groups,
       homeSummaries: summaries,
     );
+  }
+
+  /// 记录某日练习卷已生成（后台成功返回后调用；同日再次调用会更新生成时间）
+  void recordSyllableSheetGenerated(DateTime day) {
+    final base = DateTime(day.year, day.month, day.day);
+    final id =
+        '${base.year}${base.month.toString().padLeft(2, '0')}${base.day.toString().padLeft(2, '0')}';
+    final now = DateTime.now();
+    final rest = state.syllableGeneratedSheets
+        .where((e) => e.sheetDateId != id)
+        .toList();
+    rest.add(SyllableGeneratedSheetRecord(sheetDateId: id, generatedAt: now));
+    rest.sort((a, b) => b.generatedAt.compareTo(a.generatedAt));
+    state = state.copyWith(syllableGeneratedSheets: rest);
+  }
+
+  /// 是否已有某日试卷记录
+  bool hasSyllableSheetForDate(DateTime day) {
+    final base = DateTime(day.year, day.month, day.day);
+    final id =
+        '${base.year}${base.month.toString().padLeft(2, '0')}${base.day.toString().padLeft(2, '0')}';
+    return state.syllableGeneratedSheets.any((e) => e.sheetDateId == id);
   }
 }
 

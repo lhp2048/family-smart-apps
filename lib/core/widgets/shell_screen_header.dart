@@ -8,12 +8,15 @@ class ShellScreenHeader extends StatelessWidget {
     required this.icon,
     required this.title,
     this.iconColor,
+    this.trailing,
   });
 
   final VoidCallback onBack;
   final IconData icon;
   final String title;
   final Color? iconColor;
+  /// 右侧操作区（与左侧返回同宽占位对齐）；为 null 时保留空白占位。
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -30,27 +33,32 @@ class ShellScreenHeader extends StatelessWidget {
             onPressed: onBack,
           ),
           Expanded(
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, color: ic, size: 24),
-                  const SizedBox(width: 10),
-                  Text(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: ic, size: 24),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 48),
+          trailing ??
+              const SizedBox(
+                width: 48,
+                height: 48,
+              ),
         ],
       ),
     );

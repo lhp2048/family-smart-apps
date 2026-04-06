@@ -4,55 +4,114 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
+import '../../../features/dashboard/providers/family_api_base_url_provider.dart';
 import '../../../shared/providers/extracurricular_ui_providers.dart';
 import '../data/extracurricular_models.dart';
 
 const Color _kCard = Color(0xFF1A1A1F);
-const Color _kCardTop = Color(0xFF2A2A30);
 const Color _kSelectedRed = Color(0xFF5C1F1F);
 const Color _kPinkAccent = Color(0xFFFF80AB);
 
 class ExtracurricularPage extends ConsumerWidget {
   const ExtracurricularPage({super.key});
 
-  static const _sidebarEntries = <ExtracurricularSidebarEntry>[
-    ExtracurricularSidebarEntry(
-      filterId: ExtracurricularFilterIds.all,
-      label: '全部',
-      icon: Icons.apps_rounded,
-    ),
-    ExtracurricularSidebarEntry(
-      filterId: ExtracurricularFilterIds.golden,
-      label: '黄金屋',
-      icon: Icons.menu_book_rounded,
-    ),
-    ExtracurricularSidebarEntry(
-      filterId: ExtracurricularFilterIds.seventh,
-      label: '第七艺术',
-      icon: Icons.movie_filter_rounded,
-    ),
-    ExtracurricularSidebarEntry(
-      filterId: ExtracurricularFilterIds.tv,
-      label: '电视剧',
-      icon: Icons.tv_rounded,
-    ),
-    ExtracurricularSidebarEntry(
-      filterId: ExtracurricularFilterIds.anime,
-      label: '动漫/漫画',
-      icon: Icons.sports_esports_rounded,
-    ),
-    ExtracurricularSidebarEntry(
-      filterId: ExtracurricularFilterIds.doc,
-      label: '纪录片/其他',
-      icon: Icons.movie_creation_rounded,
-    ),
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final originAsync = ref.watch(familyApiOriginNotifierProvider);
+    if (originAsync.isLoading) {
+      return Scaffold(
+        backgroundColor: AppTheme.shellBackground,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ShellScreenHeader(
+                onBack: () => context.pop(),
+                icon: Icons.auto_stories_rounded,
+                title: '精彩课外',
+              ),
+              const Expanded(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final apiOn = originAsync.requireValue.trim().isNotEmpty;
+
+    if (apiOn) {
+      ref.listen(extracurricularRemoteFiltersAsyncProvider, (prev, next) {
+        next.whenData((entries) {
+          if (entries.isEmpty) return;
+          final ids = entries.map((e) => e.filterId).toSet();
+          final sel = ref.read(extracurricularFilterIdProvider);
+          if (!ids.contains(sel)) {
+            ref.read(extracurricularFilterIdProvider.notifier).state =
+                entries.first.filterId;
+          }
+        });
+      });
+
+      final filtersAsync = ref.watch(extracurricularRemoteFiltersAsyncProvider);
+      if (filtersAsync.isLoading) {
+        return Scaffold(
+          backgroundColor: AppTheme.shellBackground,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ShellScreenHeader(
+                  onBack: () => context.pop(),
+                  icon: Icons.auto_stories_rounded,
+                  title: '精彩课外',
+                ),
+                const Expanded(
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      if (filtersAsync.hasError) {
+        return Scaffold(
+          backgroundColor: AppTheme.shellBackground,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ShellScreenHeader(
+                  onBack: () => context.pop(),
+                  icon: Icons.auto_stories_rounded,
+                  title: '精彩课外',
+                ),
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        '筛选项加载失败：${filtersAsync.error}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
+    final sidebar = ref.watch(extracurricularSidebarEntriesProvider);
     final filter = ref.watch(extracurricularFilterIdProvider);
     final unwatchedOnly = ref.watch(extracurricularUnwatchedOnlyProvider);
-    final items = ref.watch(filteredExtracurricularItemsProvider);
+    final itemsAsync = ref.watch(extracurricularItemsAsyncProvider);
 
     return Scaffold(
       backgroundColor: AppTheme.shellBackground,
@@ -69,6 +128,32 @@ class ExtracurricularPage extends ConsumerWidget {
               child: LayoutBuilder(
                 builder: (context, c) {
                   final wide = c.maxWidth >= 760;
+                  Widget gridArea() {
+                    return itemsAsync.when(
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            '内容加载失败：$e',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                      data: (list) {
+                        final items = apiOn && unwatchedOnly
+                            ? list.where((e) => !e.watched).toList()
+                            : list;
+                        return _MediaGrid(items: items);
+                      },
+                    );
+                  }
+
                   if (wide) {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -76,7 +161,7 @@ class ExtracurricularPage extends ConsumerWidget {
                         SizedBox(
                           width: 200,
                           child: _TypeSidebar(
-                            entries: _sidebarEntries,
+                            entries: sidebar,
                             selectedFilter: filter,
                             unwatchedOnly: unwatchedOnly,
                             onFilter: (id) {
@@ -98,9 +183,7 @@ class ExtracurricularPage extends ConsumerWidget {
                           thickness: 1,
                           color: Colors.white.withValues(alpha: 0.08),
                         ),
-                        Expanded(
-                          child: _MediaGrid(items: items),
-                        ),
+                        Expanded(child: gridArea()),
                       ],
                     );
                   }
@@ -108,7 +191,7 @@ class ExtracurricularPage extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _TypeSidebar(
-                        entries: _sidebarEntries,
+                        entries: sidebar,
                         selectedFilter: filter,
                         unwatchedOnly: unwatchedOnly,
                         scrollableHorizontal: true,
@@ -128,7 +211,7 @@ class ExtracurricularPage extends ConsumerWidget {
                         height: 1,
                         color: Colors.white.withValues(alpha: 0.08),
                       ),
-                      Expanded(child: _MediaGrid(items: items)),
+                      Expanded(child: gridArea()),
                     ],
                   );
                 },
@@ -274,6 +357,9 @@ class _SidebarTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final emoji = entry.iconEmoji;
+    final hasEmoji = emoji != null && emoji.isNotEmpty;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -296,11 +382,17 @@ class _SidebarTile extends StatelessWidget {
           child: Row(
             mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
             children: [
-              Icon(
-                entry.icon,
-                size: 20,
-                color: selected ? Colors.white : Colors.white60,
-              ),
+              if (hasEmoji)
+                Text(
+                  emoji,
+                  style: TextStyle(fontSize: compact ? 18 : 20),
+                )
+              else
+                Icon(
+                  entry.icon ?? Icons.folder_outlined,
+                  size: 20,
+                  color: selected ? Colors.white : Colors.white60,
+                ),
               SizedBox(width: compact ? 6 : 10),
               Text(
                 entry.label,
@@ -336,20 +428,27 @@ class _MediaGrid extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, c) {
-        var cross = 1;
-        if (c.maxWidth > 520) cross = 2;
-        if (c.maxWidth > 960) cross = 3;
+        var columns = 1;
+        if (c.maxWidth > 520) columns = 2;
+        if (c.maxWidth > 960) columns = 3;
+        const horizontal = 16.0;
+        const gap = 18.0;
+        final innerW = c.maxWidth - horizontal * 2;
+        final tileW = (innerW - gap * (columns - 1)) / columns;
 
-        return GridView.builder(
+        return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: cross,
-            mainAxisSpacing: 18,
-            crossAxisSpacing: 18,
-            childAspectRatio: cross >= 3 ? 0.62 : 0.58,
+          child: Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final item in items)
+                SizedBox(
+                  width: tileW,
+                  child: _MediaCard(item: item),
+                ),
+            ],
           ),
-          itemCount: items.length,
-          itemBuilder: (context, i) => _MediaCard(item: items[i]),
         );
       },
     );
@@ -386,182 +485,286 @@ Color _pillTextColor(ExtracurricularMediumKind k) {
   }
 }
 
-class _MediaCard extends StatelessWidget {
+class _MediaCard extends StatefulWidget {
   const _MediaCard({required this.item});
 
   final ExtracurricularItem item;
 
   @override
+  State<_MediaCard> createState() => _MediaCardState();
+}
+
+class _MediaCardState extends State<_MediaCard> {
+  bool _expanded = false;
+  /// `null`：尚未测量；`true`：超过两行，可展开；`false`：两行至多，不显示展开。
+  bool? _overflowsTwoLines;
+  double? _lastMeasureWidth;
+  String? _lastMeasureDesc;
+
+  TextStyle _descriptionStyle(BuildContext context) {
+    return TextStyle(
+      color: Colors.white.withValues(alpha: 0.82),
+      fontSize: 12,
+      height: 1.4,
+    );
+  }
+
+  void _measureDescriptionOverflow(BuildContext context, double maxWidth) {
+    final d = widget.item.description.trim();
+    if (d.isEmpty) {
+      if (_overflowsTwoLines != false) {
+        setState(() {
+          _overflowsTwoLines = false;
+          _expanded = false;
+        });
+      }
+      return;
+    }
+    if (maxWidth <= 0) return;
+    if (_lastMeasureWidth == maxWidth &&
+        _lastMeasureDesc == d &&
+        _overflowsTwoLines != null) {
+      return;
+    }
+    _lastMeasureWidth = maxWidth;
+    _lastMeasureDesc = d;
+    final tp = TextPainter(
+      text: TextSpan(text: d, style: _descriptionStyle(context)),
+      textDirection: Directionality.of(context),
+      maxLines: 2,
+      textScaler: MediaQuery.textScalerOf(context),
+    );
+    tp.layout(maxWidth: maxWidth);
+    final exceeds = tp.didExceedMaxLines;
+    if (_overflowsTwoLines != exceeds && mounted) {
+      setState(() {
+        _overflowsTwoLines = exceeds;
+        if (!exceeds) {
+          _expanded = false;
+        }
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _MediaCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.id != widget.item.id ||
+        oldWidget.item.description != widget.item.description) {
+      _overflowsTwoLines = null;
+      _expanded = false;
+      _lastMeasureWidth = null;
+      _lastMeasureDesc = null;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final item = widget.item;
     final pillBg = _pillColor(item.mediumKind);
     final pillFg = _pillTextColor(item.mediumKind);
+    final canExpand = _overflowsTwoLines == true;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            flex: 11,
-            child: Container(
-              color: _kCardTop,
-              alignment: Alignment.center,
-              child: Text(
-                item.emoji,
-                style: const TextStyle(fontSize: 52),
-              ),
-            ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: canExpand ? () => setState(() => _expanded = !_expanded) : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: _kCard,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-          Expanded(
-            flex: 16,
-            child: Container(
-              color: _kCard,
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!context.mounted) return;
+                  _measureDescriptionOverflow(context, constraints.maxWidth);
+                });
+                return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.emoji,
+                      style: const TextStyle(fontSize: 28, height: 1.1),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              item.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                height: 1.25,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    height: 1.25,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 56),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: pillBg.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              item.mediumLabel,
-                              style: TextStyle(
-                                color: pillFg,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.12),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.description_outlined,
+                                      size: 12,
+                                      color: Colors.white.withValues(alpha: 0.55),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      item.watched ? '已看' : '未看',
+                                      style: TextStyle(
+                                        color:
+                                            Colors.white.withValues(alpha: 0.55),
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${item.year}',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.4),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        item.genre,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: List.generate(5, (i) {
-                          return Icon(
-                            i < item.ratingStars
-                                ? Icons.star_rounded
-                                : Icons.star_outline_rounded,
-                            size: 16,
-                            color: const Color(0xFFFFCA28),
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: Text(
-                          item.description,
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.82),
-                            fontSize: 12,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.groups_rounded,
-                            size: 16,
-                            color: Colors.white.withValues(alpha: 0.45),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '全家',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.45),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.description_outlined,
-                            size: 12,
-                            color: Colors.white.withValues(alpha: 0.55),
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            item.watched ? '已看' : '未看',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.55),
-                              fontSize: 10,
-                            ),
+                            ],
                           ),
                         ],
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: pillBg.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item.mediumLabel,
+                        style: TextStyle(
+                          color: pillFg,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${item.year}',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  item.genre,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: List.generate(5, (i) {
+                    return Icon(
+                      i < item.ratingStars
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
+                      size: 16,
+                      color: const Color(0xFFFFCA28),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  item.description,
+                  maxLines: _expanded ? null : 2,
+                  overflow: _expanded
+                      ? TextOverflow.visible
+                      : TextOverflow.ellipsis,
+                  style: _descriptionStyle(context),
+                  textScaler: MediaQuery.textScalerOf(context),
+                ),
+                if (canExpand) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        _expanded
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        size: 16,
+                        color: _kPinkAccent.withValues(alpha: 0.85),
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        _expanded ? '收起' : '展开全文',
+                        style: TextStyle(
+                          color: _kPinkAccent.withValues(alpha: 0.85),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.groups_rounded,
+                      size: 16,
+                      color: Colors.white.withValues(alpha: 0.45),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '全家',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.45),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+                );
+              },
             ),
           ),
-        ],
+        ),
       ),
     );
   }

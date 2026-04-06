@@ -54,10 +54,14 @@ class ExtracurricularSidebarEntry {
   const ExtracurricularSidebarEntry({
     required this.filterId,
     required this.label,
-    required this.icon,
+    this.icon,
+    this.iconEmoji,
   });
 
   final String filterId;
   final String label;
-  final IconData icon;
+  /// 本地 Mock / Material 图标
+  final IconData? icon;
+  /// 接口 `filters[].icon` 常为 emoji；非空时侧栏优先展示
+  final String? iconEmoji;
 }

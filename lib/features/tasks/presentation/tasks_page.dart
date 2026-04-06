@@ -1,17 +1,23 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_product_flags.dart';
+import '../../../core/storage/task_selected_biz_date_prefs.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
 import '../../../core/mock/mock_data_notifier.dart';
 import '../../../core/widgets/app_empty.dart';
+import '../../dashboard/providers/family_api_base_url_provider.dart';
 import '../../../shared/models/member_entity.dart';
 import '../../../shared/providers/task_ui_providers.dart';
+import '../data/homework_items_bundle.dart';
 import '../data/models/task_date_entity.dart';
 import '../data/models/task_item_entity.dart';
+import '../data/task_member_status.dart';
 
 const Color _kAccentPurple = Color(0xFF7C4DFF);
 const Color _kCardBg = Color(0xFF252536);
@@ -41,13 +47,45 @@ Map<String, dynamic> _decodeMap(String json) {
   }
 }
 
+/// 有持久化且仍在列表中 → 用持久化；否则用「最近一天」[dates.first]（列表已按 bizDate 降序）。
+Future<void> _reconcileTaskBizDateSelection(
+  WidgetRef ref,
+  List<TaskDateEntity> dates,
+) async {
+  if (dates.isEmpty) return;
+  final mostRecent = dates.first.bizDate;
+  final persisted = await TaskSelectedBizDatePrefs.read();
+  final String resolved;
+  if (persisted != null && dates.any((d) => d.bizDate == persisted)) {
+    resolved = persisted;
+  } else {
+    resolved = mostRecent;
+  }
+  final cur = ref.read(selectedTaskBizDateProvider);
+  if (cur != resolved) {
+    ref.read(selectedTaskBizDateProvider.notifier).state = resolved;
+  }
+}
+
 class TasksPage extends ConsumerWidget {
   const TasksPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(selectedTaskBizDateProvider);
-    final dates = ref.watch(taskDatesProvider);
+    final datesAsync = ref.watch(taskDatesAsyncProvider);
+
+    ref.listen<String>(selectedTaskBizDateProvider, (prev, next) {
+      if (next.isEmpty) return;
+      unawaited(TaskSelectedBizDatePrefs.write(next));
+    });
+
+    ref.listen<AsyncValue<List<TaskDateEntity>>>(taskDatesAsyncProvider, (prev, next) {
+      next.whenData((dates) {
+        if (dates.isEmpty) return;
+        unawaited(_reconcileTaskBizDateSelection(ref, dates));
+      });
+    });
 
     return Scaffold(
       backgroundColor: AppTheme.shellBackground,
@@ -60,9 +98,16 @@ class TasksPage extends ConsumerWidget {
               title: '作业完成情况',
             ),
             Expanded(
-              child: dates.isEmpty
-                  ? const AppEmpty(message: '暂无作业日期数据')
-                  : LayoutBuilder(
+              child: datesAsync.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+                error: (e, _) => AppEmpty(
+                  message: '作业数据加载失败：$e',
+                ),
+                data: (dates) => dates.isEmpty
+                    ? const AppEmpty(message: '暂无作业日期数据')
+                    : LayoutBuilder(
                       builder: (context, c) {
                         final wide = c.maxWidth >= 720;
                         if (wide) {
@@ -119,6 +164,7 @@ class TasksPage extends ConsumerWidget {
                         );
                       },
                     ),
+              ),
             ),
           ],
         ),
@@ -187,7 +233,8 @@ class _HomeworkDateSwipePanelState
       }
     });
 
-    final childrenList = ref.watch(homeworkChildrenProvider);
+    final childrenAsync = ref.watch(homeworkChildrenAsyncProvider);
+    final apiConfigured = ref.watch(familyApiIsConfiguredProvider);
 
     return PageView.builder(
       controller: _pageController,
@@ -198,12 +245,26 @@ class _HomeworkDateSwipePanelState
       },
       itemBuilder: (context, i) {
         final d = dates[i];
-        final items = ref.watch(flatHomeworkItemsForDateProvider(d.bizDate));
-        return _HomeworkMainPanel(
-          dateTitle: _mainDateTitle(d.bizDate, d.weekday),
-          items: items,
-          children: childrenList,
-          selectedBizDate: d.bizDate,
+        final bundleAsync =
+            ref.watch(homeworkItemsBundleForDateAsyncProvider(d.bizDate));
+        return bundleAsync.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(),
+          ),
+          error: (e, _) => AppEmpty(message: '加载失败：$e'),
+          data: (bundle) => childrenAsync.when(
+            loading: () => const Center(
+              child: CircularProgressIndicator(),
+            ),
+            error: (e, _) => AppEmpty(message: '成员加载失败：$e'),
+            data: (children) => _HomeworkMainPanel(
+              dateTitle: _mainDateTitle(d.bizDate, d.weekday),
+              bundle: bundle,
+              children: children,
+              selectedBizDate: d.bizDate,
+              readOnly: kAppReadOnlyDataMode || apiConfigured,
+            ),
+          ),
         );
       },
     );
@@ -372,22 +433,24 @@ class _HistorySidebarState extends ConsumerState<_HistorySidebar> {
 class _HomeworkMainPanel extends StatelessWidget {
   const _HomeworkMainPanel({
     required this.dateTitle,
-    required this.items,
+    required this.bundle,
     required this.children,
     required this.selectedBizDate,
+    required this.readOnly,
   });
 
   final String dateTitle;
-  final List<TaskItemEntity> items;
+  final HomeworkItemsBundle bundle;
   final List<MemberEntity> children;
   final String selectedBizDate;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
     if (children.isEmpty) {
       return const AppEmpty(message: '暂无孩子成员');
     }
-    if (items.isEmpty) {
+    if (!bundle.hasAnyItems) {
       return const AppEmpty(message: '该日暂无作业项');
     }
 
@@ -408,8 +471,9 @@ class _HomeworkMainPanel extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 16),
             child: _MemberHomeworkCard(
               member: m,
-              items: items,
+              items: bundle.itemsForMemberCode(m.memberCode),
               bizDate: selectedBizDate,
+              readOnly: readOnly,
             ),
           ),
         ),
@@ -423,18 +487,20 @@ class _MemberHomeworkCard extends ConsumerWidget {
     required this.member,
     required this.items,
     required this.bizDate,
+    required this.readOnly,
   });
 
   final MemberEntity member;
   final List<TaskItemEntity> items;
   final String bizDate;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     var done = 0;
     for (final item in items) {
       final st = _decodeMap(item.statusByMemberJson);
-      if (st[member.memberCode] == true) done++;
+      if (memberTaskDoneForMember(member, st)) done++;
     }
     final total = items.length;
     final ratio = total == 0 ? 0.0 : done / total;
@@ -508,15 +574,19 @@ class _MemberHomeworkCard extends ConsumerWidget {
           ...items.map(
             (item) => _TaskDataRow(
               item: item,
-              memberCode: member.memberCode,
-              onToggle: () {
-                ref.read(mockDataNotifierProvider.notifier).toggleMemberStatus(
-                      bizDate: bizDate,
-                      groupCode: item.groupCode,
-                      taskCode: item.taskCode,
-                      memberCode: member.memberCode,
-                    );
-              },
+              member: member,
+              onToggle: readOnly
+                  ? null
+                  : () {
+                      ref
+                          .read(mockDataNotifierProvider.notifier)
+                          .toggleMemberStatus(
+                            bizDate: bizDate,
+                            groupCode: item.groupCode,
+                            taskCode: item.taskCode,
+                            memberCode: member.memberCode,
+                          );
+                    },
             ),
           ),
         ],
@@ -570,20 +640,20 @@ class _TableHeaderRow extends StatelessWidget {
 class _TaskDataRow extends StatelessWidget {
   const _TaskDataRow({
     required this.item,
-    required this.memberCode,
+    required this.member,
     required this.onToggle,
   });
 
   final TaskItemEntity item;
-  final String memberCode;
-  final VoidCallback onToggle;
+  final MemberEntity member;
+  final VoidCallback? onToggle;
 
   @override
   Widget build(BuildContext context) {
     final st = _decodeMap(item.statusByMemberJson);
     final at = _decodeMap(item.completedAtByMemberJson);
-    final done = st[memberCode] == true;
-    final timeStr = (at[memberCode] as String?) ?? '';
+    final done = memberTaskDoneForMember(member, st);
+    final timeStr = memberTaskTimeDisplayForMember(member, at);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -604,38 +674,70 @@ class _TaskDataRow extends StatelessWidget {
           SizedBox(
             width: 52,
             child: Center(
-              child: InkWell(
-                onTap: onToggle,
-                borderRadius: BorderRadius.circular(6),
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: done
-                      ? Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4CAF50),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Icon(
-                            Icons.check,
-                            size: 16,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: Colors.white54,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                ),
-              ),
+              child: onToggle == null
+                  ? Opacity(
+                      opacity: 0.85,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: done
+                            ? Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF4CAF50),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: Colors.white54,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    )
+                  : InkWell(
+                      onTap: onToggle,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: done
+                            ? Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF4CAF50),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: Colors.white54,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
             ),
           ),
           SizedBox(

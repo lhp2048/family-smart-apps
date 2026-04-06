@@ -10,6 +10,8 @@
 	<string></string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleDisplayName</key>
+	<string>FamilyAI</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -28,5 +30,11 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSCameraUsageDescription</key>
+	<string>用于扫描服务器地址二维码</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>用于将音节练习卷图片保存到相册</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>用于将音节练习卷图片保存到相册</string>
 </dict>
 </plist>

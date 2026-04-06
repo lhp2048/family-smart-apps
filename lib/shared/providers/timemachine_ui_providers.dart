@@ -2,9 +2,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/mock/mock_data_notifier.dart';
 import '../../core/utils/biz_date.dart';
+import '../../features/dashboard/providers/dashboard_remote_providers.dart';
+import '../../features/dashboard/providers/family_api_base_url_provider.dart';
+import '../../features/timemachine/data/timemachine_api_mappers.dart';
 import '../../features/timemachine/data/timemachine_prototype_models.dart';
+import 'task_ui_providers.dart';
+
+final timemachineRemoteRefreshProvider = taskRemoteRefreshProvider;
+
+final timemachineBundleAsyncProvider =
+    FutureProvider<TimemachineRemoteBundle?>((ref) async {
+  ref.watch(timemachineRemoteRefreshProvider);
+  if (!ref.watch(familyApiIsConfiguredProvider)) {
+    return null;
+  }
+  final client = ref.watch(familyApiClientProvider);
+  return fetchTimemachineBundleRemote(client);
+});
 
 final timemachineEntriesProvider = Provider<List<TimemachineEntry>>((ref) {
+  if (ref.watch(familyApiIsConfiguredProvider)) {
+    final bundle = ref.watch(timemachineBundleAsyncProvider).valueOrNull;
+    return bundle?.entries ?? const [];
+  }
   return ref.watch(mockDataNotifierProvider).timemachineEntries;
 });
 
@@ -48,9 +68,15 @@ String timemachineCardPillLabel(String bizDate) {
   return '$m月$day日';
 }
 
-/// 第一行：有数据的月份（新→旧）
+/// 第一行：有数据的月份（新→旧）；远程用接口 chips，Mock 从条目聚合
 final timemachineSidebarMonthsProvider =
     Provider<List<TimemachineMonthChip>>((ref) {
+  if (ref.watch(familyApiIsConfiguredProvider)) {
+    final bundle = ref.watch(timemachineBundleAsyncProvider).valueOrNull;
+    if (bundle != null) return bundle.monthChips;
+    return const [];
+  }
+
   final all = ref.watch(timemachineEntriesProvider);
   if (all.isEmpty) return [];
 

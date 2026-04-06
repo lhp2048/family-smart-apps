@@ -13,17 +13,156 @@ const Color _kGold = Color(0xFFE6C358);
 const Color _kGreenPoints = Color(0xFF69F0AE);
 const Color _kPinkBadge = Color(0xFFFF8BC4);
 const Color _kCardBg = Color(0xFF252536);
-const int _kInitialPoints = 45;
 
 class PointsPage extends ConsumerWidget {
   const PointsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cycles = ref.watch(pointsWeekCyclesProvider);
+    final cyclesAsync = ref.watch(pointsWeekCyclesAsyncProvider);
+    final rulesAsync = ref.watch(pointsRulesAsyncProvider);
     final selectedId = ref.watch(selectedPointsWeekIdProvider);
-    final rules = ref.watch(pointsRulesProvider);
-    final children = ref.watch(homeworkChildrenProvider);
+    final childrenAsync = ref.watch(homeworkChildrenAsyncProvider);
+
+    ref.listen(pointsWeekCyclesAsyncProvider, (prev, next) {
+      next.whenData((cycles) {
+        if (cycles.isEmpty) return;
+        final sel = ref.read(selectedPointsWeekIdProvider);
+        final ok = cycles.any((c) => c.id == sel);
+        if (!ok) {
+          PointsWeekCycle pick;
+          try {
+            pick = cycles.firstWhere((c) => c.isCurrentWeek);
+          } catch (_) {
+            pick = cycles.first;
+          }
+          ref.read(selectedPointsWeekIdProvider.notifier).state = pick.id;
+        }
+      });
+    });
+
+    Widget body() {
+      return childrenAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: Text(
+            '成员加载失败：$e',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
+        data: (children) => cyclesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                '积分榜加载失败：$e',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+          ),
+          data: (cycles) => rulesAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  '积分规则加载失败：$e',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
+            data: (rules) {
+              if (cycles.isEmpty) {
+                return Center(
+                  child: Text(
+                    '暂无积分数据',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                  ),
+                );
+              }
+              return LayoutBuilder(
+                builder: (context, c) {
+                  final wide = c.maxWidth >= 720;
+                  if (wide) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          width: 148,
+                          child: _WeekSidebar(
+                            cycles: cycles,
+                            selectedId: selectedId,
+                            children: children,
+                            onSelect: (id) {
+                              ref
+                                  .read(selectedPointsWeekIdProvider.notifier)
+                                  .state = id;
+                            },
+                          ),
+                        ),
+                        VerticalDivider(
+                          width: 1,
+                          thickness: 1,
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                        Expanded(
+                          child: _PointsWeekSwipePanel(
+                            cycles: cycles,
+                            rules: rules,
+                            children: children,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        height: 96,
+                        child: _WeekSidebar(
+                          cycles: cycles,
+                          selectedId: selectedId,
+                          children: children,
+                          horizontal: true,
+                          onSelect: (id) {
+                            ref
+                                .read(selectedPointsWeekIdProvider.notifier)
+                                .state = id;
+                          },
+                        ),
+                      ),
+                      Divider(
+                        height: 1,
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                      Expanded(
+                        child: _PointsWeekSwipePanel(
+                          cycles: cycles,
+                          rules: rules,
+                          children: children,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppTheme.shellBackground,
@@ -35,86 +174,7 @@ class PointsPage extends ConsumerWidget {
               icon: Icons.emoji_events_rounded,
               title: '积分榜',
             ),
-            Expanded(
-              child: cycles.isEmpty
-                  ? Center(
-                      child: Text(
-                        '暂无积分数据',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
-                        ),
-                      ),
-                    )
-                  : LayoutBuilder(
-                      builder: (context, c) {
-                        final wide = c.maxWidth >= 720;
-                        if (wide) {
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              SizedBox(
-                                width: 148,
-                                child: _WeekSidebar(
-                                  cycles: cycles,
-                                  selectedId: selectedId,
-                                  children: children,
-                                  onSelect: (id) {
-                                    ref
-                                        .read(selectedPointsWeekIdProvider
-                                            .notifier)
-                                        .state = id;
-                                  },
-                                ),
-                              ),
-                              VerticalDivider(
-                                width: 1,
-                                thickness: 1,
-                                color: Colors.white.withValues(alpha: 0.08),
-                              ),
-                              Expanded(
-                                child: _PointsWeekSwipePanel(
-                                  cycles: cycles,
-                                  rules: rules,
-                                  children: children,
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(
-                              height: 96,
-                              child: _WeekSidebar(
-                                cycles: cycles,
-                                selectedId: selectedId,
-                                children: children,
-                                horizontal: true,
-                                onSelect: (id) {
-                                  ref
-                                      .read(selectedPointsWeekIdProvider
-                                          .notifier)
-                                      .state = id;
-                                },
-                              ),
-                            ),
-                            Divider(
-                              height: 1,
-                              color: Colors.white.withValues(alpha: 0.08),
-                            ),
-                            Expanded(
-                              child: _PointsWeekSwipePanel(
-                                cycles: cycles,
-                                rules: rules,
-                                children: children,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-            ),
+            Expanded(child: body()),
           ],
         ),
       ),
@@ -537,15 +597,6 @@ class _RulesCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            '以周为单位，初始 $_kInitialPoints 分。',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.55),
-              fontSize: 13,
-              height: 1.35,
-            ),
-          ),
           const SizedBox(height: 14),
           ...rules.map(
             (r) => Padding(
@@ -606,6 +657,60 @@ class _WeeklySummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = week.isCurrentWeek ? '本周总积分' : '该周总积分';
+    final codesFromWeek = week.totalsByMemberCode.keys.toList()..sort();
+    final ordered = <MemberEntity>[];
+    final seen = <String>{};
+    for (final c in children) {
+      if (week.totalsByMemberCode.containsKey(c.memberCode)) {
+        final dn = week.displayNameByMemberCode[c.memberCode];
+        if (dn != null && dn.isNotEmpty && dn != c.name) {
+          ordered.add(
+            MemberEntity()
+              ..memberCode = c.memberCode
+              ..name = dn
+              ..avatar = c.avatar
+              ..role = c.role
+              ..status = c.status
+              ..createdAt = c.createdAt
+              ..updatedAt = c.updatedAt,
+          );
+        } else {
+          ordered.add(c);
+        }
+        seen.add(c.memberCode);
+      }
+    }
+    final now = DateTime.now();
+    for (final code in codesFromWeek) {
+      if (seen.contains(code)) continue;
+      final label = week.displayNameByMemberCode[code];
+      ordered.add(
+        MemberEntity()
+          ..memberCode = code
+          ..name = (label != null && label.isNotEmpty) ? label : code
+          ..role = 'child'
+          ..status = 'active'
+          ..createdAt = now
+          ..updatedAt = now,
+      );
+    }
+    if (ordered.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          color: _kCardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+        child: Text(
+          '本周暂无成员汇总',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.45),
+            fontSize: 14,
+          ),
+        ),
+      );
+    }
     return Container(
       decoration: BoxDecoration(
         color: _kCardBg,
@@ -628,33 +733,22 @@ class _WeeklySummaryCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _ChildWeekColumn(
-                  member: children[0],
-                  total:
-                      week.totalsByMemberCode[children[0].memberCode] ?? 0,
-                  net: week.netGainByMemberCode[children[0].memberCode] ?? 0,
+              for (var i = 0; i < ordered.length; i++) ...[
+                if (i > 0)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                    width: 1,
+                    height: 100,
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                Expanded(
+                  child: _ChildWeekColumn(
+                    member: ordered[i],
+                    total: week.totalsByMemberCode[ordered[i].memberCode] ?? 0,
+                    net: week.netGainByMemberCode[ordered[i].memberCode] ?? 0,
+                  ),
                 ),
-              ),
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 12),
-                width: 1,
-                height: 100,
-                color: Colors.white.withValues(alpha: 0.08),
-              ),
-              Expanded(
-                child: children.length > 1
-                    ? _ChildWeekColumn(
-                        member: children[1],
-                        total: week
-                                .totalsByMemberCode[children[1].memberCode] ??
-                            0,
-                        net: week
-                                .netGainByMemberCode[children[1].memberCode] ??
-                            0,
-                      )
-                    : const SizedBox.shrink(),
-              ),
+              ],
             ],
           ),
         ],
@@ -752,7 +846,8 @@ class _DayLogCard extends StatelessWidget {
               const Spacer(),
               ...children.expand((m) {
                 final d = group.dayDeltaByMemberCode[m.memberCode] ?? 0;
-                final label = d > 0 ? '+$d 分' : (d == 0 ? '0' : '$d 分');
+                final label =
+                    d > 0 ? '+$d' : (d == 0 ? '+0' : '$d');
                 return [
                   Padding(
                     padding: const EdgeInsets.only(left: 10),
@@ -802,15 +897,21 @@ class _LogTableHeader extends StatelessWidget {
         );
     return Row(
       children: [
-        SizedBox(width: 44, child: Text('时间', style: th())),
-        SizedBox(width: 72, child: Text('人员', style: th())),
-        Expanded(child: Text('项目', style: th())),
+        SizedBox(width: 48, child: Text('时间', style: th())),
+        SizedBox(width: 56, child: Text('人员', style: th())),
+        Expanded(
+          flex: 3,
+          child: Text('项目', style: th()),
+        ),
         SizedBox(
-          width: 56,
+          width: 44,
           child: Text('积分', textAlign: TextAlign.end, style: th()),
         ),
-        SizedBox(width: 8),
-        Expanded(flex: 2, child: Text('备注', style: th())),
+        SizedBox(width: 6),
+        Expanded(
+          flex: 2,
+          child: Text('备注', style: th()),
+        ),
       ],
     );
   }
@@ -824,15 +925,14 @@ class _LogTableRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pos = row.pointsDelta >= 0;
-    final pts =
-        '${pos ? '+' : ''}${row.pointsDelta} 分';
+    final pts = pos ? '+${row.pointsDelta}' : '${row.pointsDelta}';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 44,
+            width: 48,
             child: Text(
               row.time,
               style: TextStyle(
@@ -842,20 +942,21 @@ class _LogTableRow extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 72,
+            width: 56,
             child: Text(
               row.person,
               style: const TextStyle(color: Colors.white, fontSize: 12),
             ),
           ),
           Expanded(
+            flex: 3,
             child: Text(
               row.item,
               style: const TextStyle(color: Colors.white, fontSize: 12),
             ),
           ),
           SizedBox(
-            width: 56,
+            width: 44,
             child: Text(
               pts,
               textAlign: TextAlign.end,
@@ -866,7 +967,7 @@ class _LogTableRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Expanded(
             flex: 2,
             child: Text(

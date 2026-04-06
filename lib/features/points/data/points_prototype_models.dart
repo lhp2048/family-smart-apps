@@ -53,6 +53,7 @@ class PointsWeekCycle {
     required this.totalsByMemberCode,
     required this.netGainByMemberCode,
     required this.dailyLogs,
+    this.displayNameByMemberCode = const {},
   });
 
   final String id;
@@ -63,4 +64,6 @@ class PointsWeekCycle {
   /// 相对初始分的净增（如 +20）
   final Map<String, int> netGainByMemberCode;
   final List<PointsDayLogGroup> dailyLogs;
+  /// 接口 `summary.list[].displayName`（可选，用于成员仅出现在汇总时的展示名）
+  final Map<String, String> displayNameByMemberCode;
 }

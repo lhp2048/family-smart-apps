@@ -1,11 +1,11 @@
 {
-    "name": "family_smart_center",
-    "short_name": "family_smart_center",
+    "name": "FamilyAI",
+    "short_name": "FamilyAI",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "FamilyAI",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

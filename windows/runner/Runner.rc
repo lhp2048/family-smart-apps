@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.aihome.family" "\0"
-            VALUE "FileDescription", "family_smart_center" "\0"
+            VALUE "FileDescription", "FamilyAI" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "family_smart_center" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.aihome.family. All rights reserved." "\0"
             VALUE "OriginalFilename", "family_smart_center.exe" "\0"
-            VALUE "ProductName", "family_smart_center" "\0"
+            VALUE "ProductName", "FamilyAI" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

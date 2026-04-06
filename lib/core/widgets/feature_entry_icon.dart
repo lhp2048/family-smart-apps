@@ -13,6 +13,10 @@ IconData featureEntryIcon(String key) {
       return Icons.history_edu_outlined;
     case 'forum_outlined':
       return Icons.forum_outlined;
+    case 'edit_note_outlined':
+      return Icons.edit_note_rounded;
+    case 'auto_stories_outlined':
+      return Icons.auto_stories_outlined;
     default:
       return Icons.widgets_outlined;
   }
@@ -30,6 +34,13 @@ String routeForEntryKey(String entryKey) {
       return '/timemachine';
     case 'debate':
       return '/debate';
+    case 'english-bonus':
+    case 'english_bonus':
+      return '/english-bonus';
+    case 'extra-curricular':
+    case 'extracurricular':
+    case 'extra_curricular':
+      return '/extra-curricular';
     default:
       return '/';
   }

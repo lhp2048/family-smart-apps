@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../shared/models/member_entity.dart';
 import '../../data/models/task_item_entity.dart';
+import '../../data/task_member_status.dart';
 
 class TaskItemTile extends StatelessWidget {
   const TaskItemTile({
@@ -25,7 +26,9 @@ class TaskItemTile extends StatelessWidget {
     final colors = context.appColors;
     Map<String, dynamic> status = {};
     try {
-      status = jsonDecode(item.statusByMemberJson) as Map<String, dynamic>;
+      status = Map<String, dynamic>.from(
+        jsonDecode(item.statusByMemberJson) as Map<dynamic, dynamic>,
+      );
     } catch (_) {}
 
     return Padding(
@@ -56,7 +59,7 @@ class TaskItemTile extends StatelessWidget {
               spacing: AppSpacing.md,
               runSpacing: AppSpacing.sm,
               children: members.map((m) {
-                final done = status[m.memberCode] == true;
+                final done = memberTaskDoneForMember(m, status);
                 return FilterChip(
                   label: Text(m.name),
                   selected: done,

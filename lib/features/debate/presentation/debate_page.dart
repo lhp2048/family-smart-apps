@@ -4,13 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
+import '../../../features/dashboard/providers/family_api_base_url_provider.dart';
 import '../../../shared/providers/debate_ui_providers.dart';
 import '../data/debate_prototype_models.dart';
 
 const Color _kCard = Color(0xFF1E1E28);
 const Color _kOrange = Color(0xFFFF9800);
 const Color _kSidebarSelected = Color(0xFF5D4037);
-const Color _kGuideBlue = Color(0xFF42A5F5);
 const Color _kProGreen = Color(0xFF66BB6A);
 const Color _kConRed = Color(0xFFEF5350);
 
@@ -19,9 +19,79 @@ class DebatePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bundles = ref.watch(debateDayBundlesProvider);
-    final selected = ref.watch(selectedDebateBizDateProvider);
-    final bundle = ref.watch(selectedDebateBundleProvider);
+    final apiOn = ref.watch(familyApiIsConfiguredProvider);
+    if (apiOn) {
+      final daysAsync = ref.watch(debateRemoteDaysAsyncProvider);
+      if (daysAsync.isLoading) {
+        return Scaffold(
+          backgroundColor: AppTheme.shellBackground,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ShellScreenHeader(
+                  onBack: () => context.pop(),
+                  icon: Icons.forum_rounded,
+                  title: '话题辩论',
+                ),
+                const Expanded(
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      if (daysAsync.hasError) {
+        return Scaffold(
+          backgroundColor: AppTheme.shellBackground,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ShellScreenHeader(
+                  onBack: () => context.pop(),
+                  icon: Icons.forum_rounded,
+                  title: '话题辩论',
+                ),
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        '辩论日期加载失败：${daysAsync.error}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
+    final dates = ref.watch(debateBizDatesProvider);
+    final effective = ref.watch(debateEffectiveBizDateProvider);
+    final bundleAsync = ref.watch(debateSelectedBundleAsyncProvider);
+
+    Widget emptyBody(String msg) {
+      return Expanded(
+        child: Center(
+          child: Text(
+            msg,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.45),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppTheme.shellBackground,
@@ -34,17 +104,38 @@ class DebatePage extends ConsumerWidget {
               icon: Icons.forum_rounded,
               title: '话题辩论',
             ),
-            Expanded(
-              child: bundles.isEmpty || bundle == null
-                  ? Center(
+            if (dates.isEmpty)
+              emptyBody('暂无辩论记录')
+            else
+              Expanded(
+                child: bundleAsync.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Text(
-                        '暂无辩论记录',
+                        '辩题加载失败：$e',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontSize: 15,
                         ),
                       ),
-                    )
-                  : LayoutBuilder(
+                    ),
+                  ),
+                  data: (bundle) {
+                    if (bundle == null) {
+                      return Center(
+                        child: Text(
+                          '该日暂无辩题内容',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.45),
+                          ),
+                        ),
+                      );
+                    }
+                    return LayoutBuilder(
                       builder: (context, c) {
                         final wide = c.maxWidth >= 720;
                         if (wide) {
@@ -54,8 +145,8 @@ class DebatePage extends ConsumerWidget {
                               SizedBox(
                                 width: 136,
                                 child: _HistorySidebar(
-                                  bundles: bundles,
-                                  selectedBizDate: selected,
+                                  bizDates: dates,
+                                  selectedBizDate: effective,
                                   onSelect: (bd) {
                                     ref
                                         .read(selectedDebateBizDateProvider
@@ -81,8 +172,8 @@ class DebatePage extends ConsumerWidget {
                             SizedBox(
                               height: 96,
                               child: _HistorySidebar(
-                                bundles: bundles,
-                                selectedBizDate: selected,
+                                bizDates: dates,
+                                selectedBizDate: effective,
                                 horizontal: true,
                                 onSelect: (bd) {
                                   ref
@@ -102,8 +193,10 @@ class DebatePage extends ConsumerWidget {
                           ],
                         );
                       },
-                    ),
-            ),
+                    );
+                  },
+                ),
+              ),
           ],
         ),
       ),
@@ -113,22 +206,22 @@ class DebatePage extends ConsumerWidget {
 
 class _HistorySidebar extends StatelessWidget {
   const _HistorySidebar({
-    required this.bundles,
+    required this.bizDates,
     required this.selectedBizDate,
     required this.onSelect,
     this.horizontal = false,
   });
 
-  final List<DebateDayBundle> bundles;
+  final List<String> bizDates;
   final String selectedBizDate;
   final void Function(String bizDate) onSelect;
   final bool horizontal;
 
   @override
   Widget build(BuildContext context) {
-    Widget tile(DebateDayBundle b) {
-      final sel = b.bizDate == selectedBizDate;
-      final text = debateSidebarLabel(b.bizDate);
+    Widget tile(String bd) {
+      final sel = bd == selectedBizDate;
+      final text = debateSidebarLabel(bd);
       return Padding(
         padding: horizontal
             ? const EdgeInsets.only(left: 8, right: 4, top: 6, bottom: 8)
@@ -136,7 +229,7 @@ class _HistorySidebar extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => onSelect(b.bizDate),
+            onTap: () => onSelect(bd),
             borderRadius: BorderRadius.circular(12),
             child: Ink(
               decoration: BoxDecoration(
@@ -195,15 +288,15 @@ class _HistorySidebar extends StatelessWidget {
       return ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        itemCount: bundles.length,
-        itemBuilder: (context, i) => tile(bundles[i]),
+        itemCount: bizDates.length,
+        itemBuilder: (context, i) => tile(bizDates[i]),
       );
     }
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
-      itemCount: bundles.length,
-      itemBuilder: (context, i) => tile(bundles[i]),
+      itemCount: bizDates.length,
+      itemBuilder: (context, i) => tile(bizDates[i]),
     );
   }
 }
@@ -215,45 +308,9 @@ class _DebateMainScroll extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pill = debateHeaderPillLabel(bundle.bizDate);
-
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: _kOrange.withValues(alpha: 0.28),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _kOrange.withValues(alpha: 0.55)),
-              ),
-              child: Text(
-                pill,
-                style: const TextStyle(
-                  color: _kOrange,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              '话题辩论',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        _MainTitleCard(bundle: bundle),
-        const SizedBox(height: 16),
-        _GuideCard(steps: bundle.guideSteps),
-        const SizedBox(height: 18),
         ...bundle.topics.map(
           (t) => Padding(
             padding: const EdgeInsets.only(bottom: 14),
@@ -261,118 +318,6 @@ class _DebateMainScroll extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _MainTitleCard extends StatelessWidget {
-  const _MainTitleCard({required this.bundle});
-
-  final DebateDayBundle bundle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF3E2723).withValues(alpha: 0.95),
-            _kCard,
-          ],
-        ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.restaurant_menu_rounded,
-              color: Colors.white, size: 32),
-          const SizedBox(height: 12),
-          Text(
-            bundle.mainTitle,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            bundle.scheduleHint,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.45),
-              fontSize: 13,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GuideCard extends StatelessWidget {
-  const _GuideCard({required this.steps});
-
-  final List<String> steps;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border(
-          left: BorderSide(color: _kGuideBlue.withValues(alpha: 0.95), width: 4),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.menu_book_rounded,
-                  color: _kGuideBlue, size: 22),
-              const SizedBox(width: 8),
-              const Text(
-                '辩论指南',
-                style: TextStyle(
-                  color: _kGuideBlue,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...List.generate(steps.length, (i) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: i == steps.length - 1 ? 0 : 6),
-              child: Text(
-                '${i + 1}. ${steps[i]}',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.82),
-                  fontSize: 13,
-                  height: 1.45,
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
     );
   }
 }

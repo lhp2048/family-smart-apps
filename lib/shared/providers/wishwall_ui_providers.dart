@@ -1,51 +1,43 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/mock/mock_data_notifier.dart';
+import '../../features/dashboard/providers/dashboard_remote_providers.dart';
+import '../../features/dashboard/providers/family_api_base_url_provider.dart';
+import '../../features/wishwall/data/wishwall_api_mappers.dart';
 import '../../features/wishwall/data/wishwall_prototype_models.dart';
+import 'task_ui_providers.dart';
 
-final wishwallItemsProvider = Provider<List<WishwallItem>>((ref) {
-  return ref.watch(mockDataNotifierProvider).wishwallItems;
+/// 与作业/积分榜共用刷新。
+final wishwallRemoteRefreshProvider = taskRemoteRefreshProvider;
+
+final wishwallItemsAsyncProvider =
+    FutureProvider<List<WishwallItem>>((ref) async {
+  ref.watch(wishwallRemoteRefreshProvider);
+  if (!ref.watch(familyApiIsConfiguredProvider)) {
+    return ref.read(mockDataNotifierProvider).wishwallItems;
+  }
+  final client = ref.watch(familyApiClientProvider);
+  return fetchAllWishesRemote(client);
 });
 
-/// 筛选：`all` | `xixi` | `chuan` | `mx` | `unrealized` | `realized`
+/// 兼容：同步列表（加载中为空）
+final wishwallItemsProvider = Provider<List<WishwallItem>>((ref) {
+  return ref.watch(wishwallItemsAsyncProvider).valueOrNull ?? const [];
+});
+
 final wishwallFilterIdProvider = StateProvider<String>((ref) => 'all');
 
 final filteredWishwallItemsProvider = Provider<List<WishwallItem>>((ref) {
   final items = ref.watch(wishwallItemsProvider);
   final filter = ref.watch(wishwallFilterIdProvider);
-  return items.where((w) {
-    switch (filter) {
-      case 'xixi':
-        return w.memberCode == 'xixi';
-      case 'chuan':
-        return w.memberCode == 'chuan';
-      case 'mx':
-        return w.memberCode == 'mx';
-      case 'unrealized':
-        return !w.fulfilled;
-      case 'realized':
-        return w.fulfilled;
-      case 'all':
-      default:
-        return true;
-    }
-  }).toList();
-});
-
-String wishwallFilterSubtitleLabel(String filterId) {
-  switch (filterId) {
-    case 'xixi':
-      return '曦曦的心愿';
-    case 'chuan':
-      return '川川的心愿';
-    case 'mx':
-      return 'mx 的心愿';
-    case 'unrealized':
-      return '未实现心愿';
-    case 'realized':
-      return '已实现心愿';
+  switch (filter) {
     case 'all':
+      return items;
+    case 'unrealized':
+      return items.where((e) => !e.fulfilled).toList();
+    case 'realized':
+      return items.where((e) => e.fulfilled).toList();
     default:
-      return '全部心愿';
+      return items.where((e) => e.memberCode == filter).toList();
   }
-}
+});

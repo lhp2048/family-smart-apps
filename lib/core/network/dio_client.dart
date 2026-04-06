@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
-/// 语音链路专用 Dio（ASR / AI），业务数据不走网络
+/// 语音链路专用 Dio（ASR / AI）。
+/// 家庭业务读接口见 `features/dashboard/data/family_api_client.dart` 与 `api_config.dart`。
 Dio createVoiceDio({String? baseUrl}) {
   final dio = Dio(
     BaseOptions(

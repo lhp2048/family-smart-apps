@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
+import '../../../features/dashboard/providers/family_api_base_url_provider.dart';
 import '../../../shared/providers/timemachine_ui_providers.dart';
 import '../data/timemachine_prototype_models.dart';
 
@@ -22,6 +23,62 @@ class TimemachinePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(familyApiIsConfiguredProvider)) {
+      final bundleAsync = ref.watch(timemachineBundleAsyncProvider);
+      if (bundleAsync.isLoading) {
+        return Scaffold(
+          backgroundColor: AppTheme.shellBackground,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ShellScreenHeader(
+                  onBack: () => context.pop(),
+                  icon: Icons.hourglass_top_rounded,
+                  title: '时光机',
+                ),
+                const Expanded(
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      if (bundleAsync.hasError) {
+        return Scaffold(
+          backgroundColor: AppTheme.shellBackground,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ShellScreenHeader(
+                  onBack: () => context.pop(),
+                  icon: Icons.hourglass_top_rounded,
+                  title: '时光机',
+                ),
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        '时光机加载失败：${bundleAsync.error}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
     final total = ref.watch(timemachineEntriesProvider).length;
     final months = ref.watch(timemachineSidebarMonthsProvider);
     final secondRowDays = ref.watch(timemachineSecondRowDaysProvider);

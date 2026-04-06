@@ -1,5 +1,5 @@
 name: family_smart_center
-description: "家庭智能中心 — Flutter 客户端"
+description: "FamilyAI — Flutter 客户端"
 publish_to: "none"
 
 version: 1.0.0+1
@@ -22,6 +22,11 @@ dependencies:
   record: ^6.2.0
   audioplayers: ^6.1.0
   permission_handler: ^11.3.1
+  screenshot: ^3.0.0
+  share_plus: ^12.0.2
+  gal: ^2.3.2
+  shared_preferences: ^2.5.3
+  mobile_scanner: ^7.0.0
 
 dev_dependencies:
   flutter_test:
@@ -29,6 +34,35 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   build_runner: ^2.4.13
   isar_generator: ^3.1.0+1
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+  windows:
+    generate: true
+  # 主资源：1024×1024 PNG，建议全幅不透明渐变（避免透明区被 iOS 填成白底）
+  image_path: assets/app_icon/app_icon_source.png
+  min_sdk_android: 21
+  adaptive_icon_background: "#2563EB"
+  adaptive_icon_foreground: assets/app_icon/app_icon_source.png
+  # 默认 16% 缩进会在前景周围留出「环」；略减小使图标更满幅
+  adaptive_icon_foreground_inset: 8
+  # flutter_launcher_icons 默认把透明像素与 #fff 混合，会整片发白，须与主色一致
+  background_color_ios: "#2563EB"
+
+flutter_native_splash:
+  color: "#1d4ed8"
+  image: assets/app_icon/app_icon_source.png
+  android_12:
+    color: "#1d4ed8"
+    image: assets/app_icon/app_icon_source.png
+  web: true
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/app_icon/

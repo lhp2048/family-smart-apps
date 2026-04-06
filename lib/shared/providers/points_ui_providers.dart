@@ -1,24 +1,43 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/mock/mock_data_notifier.dart';
+import '../../features/dashboard/providers/family_api_base_url_provider.dart';
+import '../../features/points/data/points_api_mappers.dart';
 import '../../features/points/data/points_prototype_models.dart';
+import 'task_ui_providers.dart';
+import '../../features/dashboard/providers/dashboard_remote_providers.dart';
 
-final pointsRulesProvider = Provider<List<PointsRuleLine>>((ref) {
-  return ref.watch(mockDataNotifierProvider).pointsRules;
-});
+/// 与作业页共用刷新计数，便于设置里「校验站点」后一并重拉。
+final pointsRemoteRefreshProvider = taskRemoteRefreshProvider;
 
-final pointsWeekCyclesProvider = Provider<List<PointsWeekCycle>>((ref) {
-  return ref.watch(mockDataNotifierProvider).pointsWeekCycles;
-});
-
-/// 当前选中的周周期 id（默认「本周」）
-final selectedPointsWeekIdProvider = StateProvider<String>((ref) {
-  final cycles = ref.read(mockDataNotifierProvider).pointsWeekCycles;
-  for (final c in cycles) {
-    if (c.isCurrentWeek) return c.id;
+final pointsRulesAsyncProvider =
+    FutureProvider<List<PointsRuleLine>>((ref) async {
+  ref.watch(pointsRemoteRefreshProvider);
+  if (!ref.watch(familyApiIsConfiguredProvider)) {
+    return ref.read(mockDataNotifierProvider).pointsRules;
   }
-  return cycles.isNotEmpty ? cycles.first.id : '';
+  final client = ref.watch(familyApiClientProvider);
+  return fetchPointsRulesRemote(client);
 });
+
+final pointsWeekCyclesAsyncProvider =
+    FutureProvider<List<PointsWeekCycle>>((ref) async {
+  ref.watch(pointsRemoteRefreshProvider);
+  if (!ref.watch(familyApiIsConfiguredProvider)) {
+    return ref.read(mockDataNotifierProvider).pointsWeekCycles;
+  }
+  final client = ref.watch(familyApiClientProvider);
+  return fetchPointsWeekCyclesRemote(client);
+});
+
+/// 供 [selectedPointsWeekProvider] 等与周列表同步；加载中为空列表（页面用 Async 展示进度）
+final pointsWeekCyclesProvider = Provider<List<PointsWeekCycle>>((ref) {
+  final async = ref.watch(pointsWeekCyclesAsyncProvider);
+  return async.maybeWhen(data: (d) => d, orElse: () => const []);
+});
+
+/// 当前选中的周周期 id；远程数据到达后由页面 [ref.listen] 校正到有效值
+final selectedPointsWeekIdProvider = StateProvider<String>((ref) => '');
 
 final selectedPointsWeekProvider = Provider<PointsWeekCycle?>((ref) {
   final id = ref.watch(selectedPointsWeekIdProvider);
