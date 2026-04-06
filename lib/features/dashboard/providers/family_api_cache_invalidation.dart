@@ -21,6 +21,7 @@ void invalidateFamilyApiCaches(WidgetRef ref) {
   ref.invalidate(taskDatesAsyncProvider);
   ref.invalidate(homeworkChildrenAsyncProvider);
   ref.invalidate(homeworkItemsBundleForDateAsyncProvider);
+  ref.invalidate(familyMembersAllAsyncProvider);
 
   ref.invalidate(pointsRulesAsyncProvider);
   ref.invalidate(pointsWeekCyclesAsyncProvider);

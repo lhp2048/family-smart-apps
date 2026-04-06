@@ -69,6 +69,37 @@ final homeworkChildrenAsyncProvider =
   return list;
 });
 
+/// 家长优先，其余角色次之，同角色按 [MemberEntity.memberCode]。
+int _roleRankForSettingsMemberSort(String role) {
+  switch (role) {
+    case 'parent':
+      return 0;
+    case 'child':
+      return 1;
+    default:
+      return 2;
+  }
+}
+
+/// 设置页：全部成员（未配置 → 空；已配置 → `GET /v1/members`）。
+final familyMembersAllAsyncProvider =
+    FutureProvider<List<MemberEntity>>((ref) async {
+  ref.watch(taskRemoteRefreshProvider);
+  if (!ref.watch(familyApiIsConfiguredProvider)) {
+    return const [];
+  }
+  final client = ref.watch(familyApiClientProvider);
+  final raw = await client.fetchMembers();
+  final list = raw.map(memberFromApiMap).toList();
+  list.sort((a, b) {
+    final byRole = _roleRankForSettingsMemberSort(a.role)
+        .compareTo(_roleRankForSettingsMemberSort(b.role));
+    if (byRole != 0) return byRole;
+    return a.memberCode.compareTo(b.memberCode);
+  });
+  return list;
+});
+
 /// 某日作业数据：Mock/经典接口为扁平；「每人一行」接口按 `groupCode`（成员）分块，组内按 `taskName` 字典序排序。
 final homeworkItemsBundleForDateAsyncProvider =
     FutureProvider.family<HomeworkItemsBundle, String>((ref, bizDate) async {

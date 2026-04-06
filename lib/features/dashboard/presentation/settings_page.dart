@@ -8,11 +8,24 @@ import '../../../core/constants/api_config.dart' show kFamilyApiDefaultOrigin;
 import '../../../core/constants/build_stamp.dart' show kAppBuildStamp;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
+import '../../../shared/models/member_entity.dart';
+import '../../../shared/providers/task_ui_providers.dart';
 import '../data/family_api_client.dart';
 import '../providers/dashboard_home_title_provider.dart';
 import '../providers/family_api_cache_invalidation.dart';
 import '../providers/family_api_base_url_provider.dart';
 import 'server_origin_qr_scan_page.dart';
+
+String _memberRoleLabel(String role) {
+  switch (role) {
+    case 'parent':
+      return '家长';
+    case 'child':
+      return '孩子';
+    default:
+      return role.isEmpty ? '—' : role;
+  }
+}
 
 bool get _serverOriginScanSupported =>
     !kIsWeb &&
@@ -59,9 +72,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         .persistTitle(_homeTitleCtrl.text);
     if (!mounted) return;
     setState(() => _editingHomeTitle = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('主页标题已保存')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('主页标题已保存')));
   }
 
   void _startEdit(String currentUrl) {
@@ -80,15 +93,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Future<void> _scanAndApplyServerUrl() async {
     if (!_serverOriginScanSupported) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('当前平台不支持扫码')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('当前平台不支持扫码')));
       return;
     }
     final url = await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(
-        builder: (_) => const ServerOriginQrScanPage(),
-      ),
+      MaterialPageRoute<String>(builder: (_) => const ServerOriginQrScanPage()),
     );
     if (!mounted || url == null || url.isEmpty) return;
     setState(() {
@@ -102,7 +113,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     if (_validating) return;
     final trimmed = _serverCtrl.text.trim();
     if (trimmed.isEmpty) {
-      await _clearServerUrl();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请填写有效的服务器地址')));
       return;
     }
     setState(() => _validating = true);
@@ -118,9 +132,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         _editingServer = false;
         _validating = false;
       });
-      messenger.showSnackBar(
-        const SnackBar(content: Text('服务器地址已保存')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('服务器地址已保存')));
     } on FamilyApiException catch (e) {
       if (!mounted) return;
       setState(() => _validating = false);
@@ -128,44 +140,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _validating = false);
-      messenger.showSnackBar(
-        SnackBar(content: Text('校验失败：$e')),
-      );
-    }
-  }
-
-  Future<void> _clearServerUrl() async {
-    if (_validating) return;
-    setState(() => _validating = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await ref.read(familyApiOriginNotifierProvider.notifier).clearOrigin();
-      invalidateFamilyApiCaches(ref);
-      if (!mounted) return;
-      setState(() {
-        _editingServer = false;
-        _validating = false;
-        _serverCtrl.clear();
-      });
-      messenger.showSnackBar(
-        const SnackBar(content: Text('已清空服务器地址并断开远程数据缓存')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _validating = false);
-      messenger.showSnackBar(SnackBar(content: Text('清空失败：$e')));
+      messenger.showSnackBar(SnackBar(content: Text('校验失败：$e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final muted =
-        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55);
+    final muted = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.55);
     final baseAsync = ref.watch(familyApiOriginNotifierProvider);
     final displayOrigin = baseAsync.valueOrNull ?? kFamilyApiDefaultOrigin;
+    final apiConfigured = ref.watch(familyApiIsConfiguredProvider);
+    final membersAsync = ref.watch(familyMembersAllAsyncProvider);
     final homeTitleAsync = ref.watch(dashboardHomeTitleProvider);
-    final displayHomeTitle = homeTitleAsync.valueOrNull ??
-        DashboardHomeTitleNotifier.kDefaultTitle;
+    final displayHomeTitle =
+        homeTitleAsync.valueOrNull ?? DashboardHomeTitleNotifier.kDefaultTitle;
 
     return Scaffold(
       backgroundColor: AppTheme.shellBackground,
@@ -194,7 +184,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const Text(
-                            '标题设置',
+                            '我家',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 15,
@@ -239,8 +229,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                             alpha: 0.25,
                                           ),
                                           border: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                             borderSide: BorderSide.none,
                                           ),
                                         ),
@@ -255,9 +246,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                 visualDensity: VisualDensity.compact,
                                 onPressed: _editingHomeTitle
                                     ? _saveHomeTitle
-                                    : () => _startEditHomeTitle(
-                                          displayHomeTitle,
-                                        ),
+                                    : () =>
+                                          _startEditHomeTitle(displayHomeTitle),
                                 icon: Icon(
                                   _editingHomeTitle
                                       ? Icons.check_rounded
@@ -340,8 +330,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                             alpha: 0.25,
                                           ),
                                           border: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                             borderSide: BorderSide.none,
                                           ),
                                         ),
@@ -364,13 +355,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                 onPressed: (baseAsync.isLoading || _validating)
                                     ? null
                                     : _editingServer
-                                        ? _confirmServerUrl
-                                        : () => _startEdit(
-                                              displayOrigin.isEmpty
-                                                  ? ''
-                                                  : displayOrigin,
-                                            ),
-                                onLongPress: _editingServer ||
+                                    ? _confirmServerUrl
+                                    : () => _startEdit(
+                                        displayOrigin.isEmpty
+                                            ? ''
+                                            : displayOrigin,
+                                      ),
+                                onLongPress:
+                                    _editingServer ||
                                         !_serverOriginScanSupported ||
                                         baseAsync.isLoading ||
                                         _validating
@@ -400,8 +392,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                 tooltip: _editingServer
                                     ? '保存并校验'
                                     : _serverOriginScanSupported
-                                        ? '点击手动输入，长按扫码'
-                                        : '手动输入',
+                                    ? '点击手动输入，长按扫码'
+                                    : '手动输入',
                               ),
                             ],
                           ),
@@ -419,25 +411,126 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ),
                     ),
                     Text(
-                      '确定后将请求 GET {上述地址}/api/v1/members 校验；成功且成员非空后保存站点根（不含 /api/v1）。留空并保存可清空地址。',
-                      style: TextStyle(color: muted, fontSize: 12, height: 1.35),
-                    ),
-                  ],
-                  if (displayOrigin.isNotEmpty &&
-                      !baseAsync.isLoading &&
-                      !_editingServer) ...[
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _validating ? null : _clearServerUrl,
-                        child: Text(
-                          '清空服务器地址',
-                          style: TextStyle(color: Colors.orange.shade300),
-                        ),
+                      '确定后将请求 GET {上述地址}/api/v1/members 校验；成功且成员非空后保存站点根（不含 /api/v1）。',
+                      style: TextStyle(
+                        color: muted,
+                        fontSize: 12,
+                        height: 1.35,
                       ),
                     ),
                   ],
+                  const SizedBox(height: 16),
+                  Material(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  '成员',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              if (apiConfigured)
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 40,
+                                    minHeight: 40,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  tooltip: '重新拉取',
+                                  onPressed: () {
+                                    ref.invalidate(
+                                      familyMembersAllAsyncProvider,
+                                    );
+                                  },
+                                  icon: Icon(
+                                    Icons.refresh_rounded,
+                                    color: Colors.white.withValues(alpha: 0.75),
+                                    size: 22,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          if (!apiConfigured)
+                            Text(
+                              '保存并校验通过服务器地址后，将在此显示从接口获取的成员信息。',
+                              style: TextStyle(
+                                color: muted,
+                                fontSize: 13,
+                                height: 1.35,
+                              ),
+                            )
+                          else
+                            membersAsync.when(
+                              loading: () => const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              error: (e, _) => Text(
+                                '成员加载失败：$e',
+                                style: TextStyle(
+                                  color: Colors.orange.shade400,
+                                  fontSize: 13,
+                                  height: 1.35,
+                                ),
+                              ),
+                              data: (members) {
+                                if (members.isEmpty) {
+                                  return Text(
+                                    '暂无成员数据',
+                                    style: TextStyle(
+                                      color: muted,
+                                      fontSize: 13,
+                                    ),
+                                  );
+                                }
+                                return Column(
+                                  children: [
+                                    for (
+                                      var i = 0;
+                                      i < members.length;
+                                      i++
+                                    ) ...[
+                                      if (i > 0)
+                                        Divider(
+                                          height: 1,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.08,
+                                          ),
+                                        ),
+                                      _SettingsMemberTile(member: members[i]),
+                                    ],
+                                  ],
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 28),
                   Text(
                     '更多选项即将开放',
@@ -461,6 +554,74 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+String _settingsFirstGrapheme(String s) {
+  if (s.isEmpty) return '?';
+  final it = s.runes.iterator;
+  return it.moveNext() ? String.fromCharCode(it.current) : '?';
+}
+
+class _SettingsMemberTile extends StatelessWidget {
+  const _SettingsMemberTile({required this.member});
+
+  final MemberEntity member;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.55);
+    final avatar = member.avatar;
+    final looksEmoji =
+        avatar != null &&
+        avatar.isNotEmpty &&
+        avatar.length <= 8 &&
+        !avatar.toLowerCase().startsWith('http');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: Colors.white.withValues(alpha: 0.12),
+            child: Text(
+              looksEmoji ? avatar : _settingsFirstGrapheme(member.name),
+              style: TextStyle(
+                fontSize: looksEmoji ? 20 : 18,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  member.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_memberRoleLabel(member.role)} · ${member.memberCode}'
+                  '${member.status.isNotEmpty ? ' · ${member.status}' : ''}',
+                  style: TextStyle(color: muted, fontSize: 12, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
