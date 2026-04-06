@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/utils/api_base_url.dart';
+import '../../../core/utils/bearer_token.dart';
 
 class FamilyApiException implements Exception {
   FamilyApiException(this.message);
@@ -17,19 +18,28 @@ class FamilyApiClient {
 
   final Dio _dio;
 
-  static Dio createDio({String? baseUrl}) {
+  /// [accessToken] 来自设置中的「访问API KEY」，写入请求头 `X-API-Key`。
+  static Dio createDio({String? baseUrl, String? accessToken}) {
     final resolved = (baseUrl == null || baseUrl.isEmpty)
         ? kFamilyApiUnsetV1Placeholder
         : baseUrl;
+    final raw = accessToken?.trim();
+    final key = raw == null || raw.isEmpty ? '' : normalizeBearerSecret(raw);
+    // 与后端约定：`X-API-Key: <key>`。`preserveHeaderCase` 避免头名被规范成小写。
+    final baseHeaders = <String, dynamic>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    if (key.isNotEmpty) {
+      baseHeaders['X-API-Key'] = key;
+    }
     final dio = Dio(
       BaseOptions(
         baseUrl: resolved,
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 20),
-        headers: const {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        preserveHeaderCase: true,
+        headers: baseHeaders,
       ),
     );
     dio.interceptors.add(
@@ -37,6 +47,11 @@ class FamilyApiClient {
         onRequest: (options, handler) {
           options.headers['X-Request-Id'] =
               DateTime.now().microsecondsSinceEpoch.toString();
+          if (key.isNotEmpty) {
+            options.headers['X-API-Key'] = key;
+          } else {
+            options.headers.remove('X-API-Key');
+          }
           handler.next(options);
         },
       ),
@@ -45,7 +60,10 @@ class FamilyApiClient {
   }
 
   /// 设置页保存前校验：请求 `GET {origin}/api/v1/members`，且成员列表非空。
-  static Future<void> validateServerBaseUrl(String rawInput) async {
+  static Future<void> validateServerBaseUrl(
+    String rawInput, {
+    String? accessToken,
+  }) async {
     final String origin;
     try {
       origin = normalizeFamilyApiOrigin(rawInput);
@@ -54,7 +72,7 @@ class FamilyApiClient {
       throw FamilyApiException(m.isNotEmpty ? m : '地址无效');
     }
     final v1Base = familyOriginToApiV1Base(origin);
-    final dio = createDio(baseUrl: v1Base);
+    final dio = createDio(baseUrl: v1Base, accessToken: accessToken);
     try {
       final res = await dio.get<Map<String, dynamic>>('members');
       final list = _parseMembersListFromResponse(res.data);
@@ -80,7 +98,7 @@ class FamilyApiClient {
         return '未找到接口(404)。请确认端口正确（如 :18024），且服务提供 GET /api/v1/members';
       case 401:
       case 403:
-        return '无权限访问($code)，请检查鉴权';
+        return '无权限访问($code)，请检查设置中的访问API KEY（X-API-Key）是否正确';
       case 500:
       case 502:
       case 503:

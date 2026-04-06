@@ -8,11 +8,17 @@ import '../data/dashboard_life_menu_catalog.dart';
 import '../data/dashboard_prototype_models.dart';
 import '../data/family_api_client.dart';
 import '../data/home_card_parsers.dart';
+import 'family_api_access_token_provider.dart';
 import 'family_api_base_url_provider.dart';
 
 final familyApiDioProvider = Provider<Dio>((ref) {
   final baseUrl = ref.watch(familyApiV1BaseSyncProvider);
-  final dio = FamilyApiClient.createDio(baseUrl: baseUrl);
+  final token =
+      ref.watch(familyApiAccessTokenNotifierProvider).valueOrNull ?? '';
+  final dio = FamilyApiClient.createDio(
+    baseUrl: baseUrl,
+    accessToken: token.isEmpty ? null : token,
+  );
   ref.onDispose(dio.close);
   return dio;
 });

@@ -6,12 +6,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/api_config.dart' show kFamilyApiDefaultOrigin;
 import '../../../core/constants/build_stamp.dart' show kAppBuildStamp;
+import '../../../core/utils/bearer_token.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
 import '../../../shared/models/member_entity.dart';
 import '../../../shared/providers/task_ui_providers.dart';
 import '../data/family_api_client.dart';
 import '../providers/dashboard_home_title_provider.dart';
+import '../providers/family_api_access_token_provider.dart';
 import '../providers/family_api_cache_invalidation.dart';
 import '../providers/family_api_base_url_provider.dart';
 import 'server_origin_qr_scan_page.dart';
@@ -44,14 +46,19 @@ class SettingsPage extends ConsumerStatefulWidget {
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   bool _editingHomeTitle = false;
   bool _editingServer = false;
+  /// 仅改 API KEY：不展开服务器地址输入，也不触发 GET /members 校验。
+  bool _editingTokenOnly = false;
   bool _validating = false;
+  bool _tokenObscured = true;
   late final TextEditingController _homeTitleCtrl = TextEditingController();
   late final TextEditingController _serverCtrl = TextEditingController();
+  late final TextEditingController _tokenCtrl = TextEditingController();
 
   @override
   void dispose() {
     _homeTitleCtrl.dispose();
     _serverCtrl.dispose();
+    _tokenCtrl.dispose();
     super.dispose();
   }
 
@@ -77,18 +84,80 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     ).showSnackBar(const SnackBar(content: Text('主页标题已保存')));
   }
 
-  void _startEdit(String currentUrl) {
+  void _startEdit(String currentUrl, String currentToken) {
     setState(() {
       _editingServer = true;
+      _editingTokenOnly = false;
       _serverCtrl.text = currentUrl;
+      _tokenObscured = true;
+      _tokenCtrl.text = currentToken;
     });
   }
 
   void _cancelEdit() {
+    final t = ref.read(familyApiAccessTokenNotifierProvider).valueOrNull ?? '';
     setState(() {
       _editingServer = false;
       _validating = false;
+      _tokenCtrl.text = t;
     });
+  }
+
+  void _startEditTokenOnly(String current) {
+    setState(() {
+      _editingTokenOnly = true;
+      _editingServer = false;
+      _tokenObscured = true;
+      _tokenCtrl.text = current;
+    });
+  }
+
+  void _cancelTokenOnly() {
+    final t = ref.read(familyApiAccessTokenNotifierProvider).valueOrNull ?? '';
+    setState(() {
+      _editingTokenOnly = false;
+      _tokenCtrl.text = t;
+    });
+  }
+
+  Future<void> _saveTokenOnly() async {
+    final key = normalizeBearerSecret(_tokenCtrl.text);
+    if (key.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请填写访问API KEY')));
+      return;
+    }
+    await ref
+        .read(familyApiAccessTokenNotifierProvider.notifier)
+        .persistToken(_tokenCtrl.text);
+    invalidateFamilyApiCaches(ref);
+    if (!mounted) return;
+    setState(() => _editingTokenOnly = false);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('访问API KEY 已保存')));
+  }
+
+  /// 进入 [FamilyApiClient.validateServerBaseUrl] 前须已填写服务器地址与非空访问 API KEY。
+  bool _ensureServerAndApiKeyForValidation() {
+    if (!mounted) return false;
+    final trimmed = _serverCtrl.text.trim();
+    if (trimmed.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请填写有效的服务器地址')),
+      );
+      return false;
+    }
+    final apiKey = normalizeBearerSecret(_tokenCtrl.text);
+    if (apiKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请填写访问API KEY')),
+      );
+      return false;
+    }
+    return true;
   }
 
   Future<void> _scanAndApplyServerUrl() async {
@@ -102,27 +171,31 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       MaterialPageRoute<String>(builder: (_) => const ServerOriginQrScanPage()),
     );
     if (!mounted || url == null || url.isEmpty) return;
+    final t = ref.read(familyApiAccessTokenNotifierProvider).valueOrNull ?? '';
     setState(() {
       _editingServer = true;
+      _editingTokenOnly = false;
       _serverCtrl.text = url;
+      _tokenCtrl.text = t;
     });
     await _confirmServerUrl();
   }
 
   Future<void> _confirmServerUrl() async {
     if (_validating) return;
+    if (!_ensureServerAndApiKeyForValidation()) return;
     final trimmed = _serverCtrl.text.trim();
-    if (trimmed.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('请填写有效的服务器地址')));
-      return;
-    }
+    final token = normalizeBearerSecret(_tokenCtrl.text);
     setState(() => _validating = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await FamilyApiClient.validateServerBaseUrl(trimmed);
+      await ref
+          .read(familyApiAccessTokenNotifierProvider.notifier)
+          .persistToken(_tokenCtrl.text);
+      await FamilyApiClient.validateServerBaseUrl(
+        trimmed,
+        accessToken: token,
+      );
       await ref
           .read(familyApiOriginNotifierProvider.notifier)
           .persistValidatedOrigin(trimmed);
@@ -156,6 +229,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final homeTitleAsync = ref.watch(dashboardHomeTitleProvider);
     final displayHomeTitle =
         homeTitleAsync.valueOrNull ?? DashboardHomeTitleNotifier.kDefaultTitle;
+    final tokenAsync = ref.watch(familyApiAccessTokenNotifierProvider);
+    final displayToken = tokenAsync.valueOrNull ?? '';
 
     return Scaffold(
       backgroundColor: AppTheme.shellBackground,
@@ -286,32 +361,51 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
-                            '服务器地址',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  '服务器地址',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              if (!_editingServer && !_editingTokenOnly)
+                                TextButton(
+                                  onPressed: baseAsync.isLoading
+                                      ? null
+                                      : () =>
+                                            _startEditTokenOnly(displayToken),
+                                  style: TextButton.styleFrom(
+                                    minimumSize: Size.zero,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'API KEY',
+                                    style: TextStyle(
+                                      color: muted,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 8),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Expanded(
-                                child: !_editingServer
-                                    ? Text(
-                                        displayOrigin.isEmpty
-                                            ? '示例：http://192.168.2.11:18024'
-                                            : displayOrigin,
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.55,
-                                          ),
-                                          fontSize: 13,
-                                        ),
-                                      )
-                                    : TextField(
+                                child: _editingServer
+                                    ? TextField(
                                         controller: _serverCtrl,
                                         style: const TextStyle(
                                           color: Colors.white,
@@ -319,7 +413,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                         ),
                                         decoration: InputDecoration(
                                           isDense: true,
-                                          hintText: 'http://192.168.2.11:18024',
+                                          hintText:
+                                              'http://192.168.2.11:18024',
                                           hintStyle: TextStyle(
                                             color: Colors.white.withValues(
                                               alpha: 0.35,
@@ -343,6 +438,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                             RegExp(r'\s'),
                                           ),
                                         ],
+                                      )
+                                    : Text(
+                                        displayOrigin.isEmpty
+                                            ? '示例：http://192.168.2.11:18024'
+                                            : displayOrigin,
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.55,
+                                          ),
+                                          fontSize: 13,
+                                        ),
                                       ),
                               ),
                               IconButton(
@@ -360,9 +466,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                         displayOrigin.isEmpty
                                             ? ''
                                             : displayOrigin,
+                                        displayToken,
                                       ),
-                                onLongPress:
-                                    _editingServer ||
+                                onLongPress: _editingServer ||
+                                        _editingTokenOnly ||
                                         !_serverOriginScanSupported ||
                                         baseAsync.isLoading ||
                                         _validating
@@ -391,12 +498,139 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                       ),
                                 tooltip: _editingServer
                                     ? '保存并校验'
+                                    : _editingTokenOnly
+                                    ? '编辑服务器与 API KEY'
                                     : _serverOriginScanSupported
                                     ? '点击手动输入，长按扫码'
                                     : '手动输入',
                               ),
                             ],
                           ),
+                          if (_editingServer) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              '访问API KEY',
+                              style: TextStyle(
+                                color: muted,
+                                fontSize: 12,
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: _tokenCtrl,
+                              obscureText: _tokenObscured,
+                              autocorrect: false,
+                              enableSuggestions: false,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                              ),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                hintText: '粘贴或输入 API KEY',
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.35),
+                                ),
+                                filled: true,
+                                fillColor: Colors.black.withValues(alpha: 0.25),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide.none,
+                                ),
+                                suffixIcon: IconButton(
+                                  tooltip: _tokenObscured ? '显示' : '隐藏',
+                                  onPressed: () => setState(
+                                    () => _tokenObscured = !_tokenObscured,
+                                  ),
+                                  icon: Icon(
+                                    _tokenObscured
+                                        ? Icons.visibility_off_rounded
+                                        : Icons.visibility_rounded,
+                                    color: Colors.white.withValues(alpha: 0.65),
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (_editingTokenOnly) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              '访问API KEY',
+                              style: TextStyle(
+                                color: muted,
+                                fontSize: 12,
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _tokenCtrl,
+                                    autofocus: true,
+                                    obscureText: _tokenObscured,
+                                    autocorrect: false,
+                                    enableSuggestions: false,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                    ),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      hintText: '粘贴或输入 API KEY',
+                                      hintStyle: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.35,
+                                        ),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.black.withValues(
+                                        alpha: 0.25,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      suffixIcon: IconButton(
+                                        tooltip: _tokenObscured ? '显示' : '隐藏',
+                                        onPressed: () => setState(
+                                          () => _tokenObscured =
+                                              !_tokenObscured,
+                                        ),
+                                        icon: Icon(
+                                          _tokenObscured
+                                              ? Icons.visibility_off_rounded
+                                              : Icons.visibility_rounded,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.65,
+                                          ),
+                                          size: 22,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 40,
+                                    minHeight: 40,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: _saveTokenOnly,
+                                  icon: const Icon(
+                                    Icons.check_rounded,
+                                    color: Color(0xFF69F0AE),
+                                  ),
+                                  tooltip: '保存 API KEY',
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -411,7 +645,26 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ),
                     ),
                     Text(
-                      '确定后将请求 GET {上述地址}/api/v1/members 校验；成功且成员非空后保存站点根（不含 /api/v1）。',
+                      '确定后将请求 GET {上述地址}/api/v1/members 校验；成功且成员非空后保存站点根（不含 /api/v1）。'
+                      ' 当前输入的 API KEY 会一并保存。',
+                      style: TextStyle(
+                        color: muted,
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                  if (_editingTokenOnly) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _cancelTokenOnly,
+                        child: const Text('取消'),
+                      ),
+                    ),
+                    Text(
+                      '仅保存 API KEY，不会校验服务器地址。点右侧编辑图标可改为同时编辑地址与 API KEY。',
                       style: TextStyle(
                         color: muted,
                         fontSize: 12,

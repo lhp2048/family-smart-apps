@@ -6,6 +6,7 @@
 //
 // 或用环境变量：
 //   set FAMILY_API_ORIGIN=http://192.168.2.11:18024
+//   set FAMILY_API_ACCESS_TOKEN=与 App 设置中访问API KEY 相同（必填）
 //   dart run tool/verify_homework_biz_date.dart 2026-04-03
 //
 // 退出码：0 正常；1 请求/解析失败；2 发现成员码与 status 键不一致等告警（仍打印完整报告）。
@@ -96,7 +97,17 @@ Future<void> main(List<String> args) async {
 
   final v1Base =
       familyOriginToApiV1Base(normalizeFamilyApiOrigin(resolvedOrigin));
-  final dio = FamilyApiClient.createDio(baseUrl: v1Base);
+  final envKey = Platform.environment['FAMILY_API_ACCESS_TOKEN']?.trim();
+  if (envKey == null || envKey.isEmpty) {
+    stderr.writeln(
+      '请设置环境变量 FAMILY_API_ACCESS_TOKEN（与 App 设置中访问API KEY 一致）。',
+    );
+    exit(64);
+  }
+  final dio = FamilyApiClient.createDio(
+    baseUrl: v1Base,
+    accessToken: envKey,
+  );
   final client = FamilyApiClient(dio);
 
   stderr.writeln('GET 基址: $v1Base');
