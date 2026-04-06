@@ -76,7 +76,7 @@ class DashboardPage extends ConsumerWidget {
       data: (v) => v,
       loading: () =>
           configured ? kDashboardLifeMenuTemplate : mock.dashboardLifeMenu,
-      error: (_, __) =>
+      error: (_, _) =>
           configured ? kDashboardLifeMenuTemplate : mock.dashboardLifeMenu,
     );
 
