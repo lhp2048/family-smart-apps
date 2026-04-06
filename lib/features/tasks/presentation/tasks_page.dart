@@ -31,27 +31,6 @@ String _sidebarDateShort(String bizDate) {
   return bizDate;
 }
 
-DateTime? _parseBizDateYmd(String bizDate) {
-  try {
-    final p = bizDate.split('-');
-    if (p.length != 3) return null;
-    return DateTime(int.parse(p[0]), int.parse(p[1]), int.parse(p[2]));
-  } catch (_) {
-    return null;
-  }
-}
-
-/// 主内容区顶部：最近一周对应的起止日期（与侧栏日期列表一致）。
-String _weekRangeLabelForTasks(List<TaskDateEntity> dates) {
-  if (dates.isEmpty) return '最近一周';
-  final sorted = [...dates]..sort((a, b) => a.bizDate.compareTo(b.bizDate));
-  final start = _parseBizDateYmd(sorted.first.bizDate);
-  final end = _parseBizDateYmd(sorted.last.bizDate);
-  if (start == null || end == null) return '最近一周';
-  String fmt(DateTime d) => '${d.month}月${d.day}日';
-  return '最近一周 ${fmt(start)}—${fmt(end)}';
-}
-
 Map<String, dynamic> _decodeMap(String json) {
   try {
     return Map<String, dynamic>.from(jsonDecode(json) as Map<dynamic, dynamic>);
@@ -275,7 +254,6 @@ class _HomeworkDateSwipePanelState
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => AppEmpty(message: '成员加载失败：$e'),
             data: (children) => _HomeworkMainPanel(
-              dateTitle: _weekRangeLabelForTasks(widget.dates),
               bundle: bundle,
               children: children,
               selectedBizDate: d.bizDate,
@@ -449,14 +427,12 @@ class _HistorySidebarState extends ConsumerState<_HistorySidebar> {
 
 class _HomeworkMainPanel extends StatelessWidget {
   const _HomeworkMainPanel({
-    required this.dateTitle,
     required this.bundle,
     required this.children,
     required this.selectedBizDate,
     required this.readOnly,
   });
 
-  final String dateTitle;
   final HomeworkItemsBundle bundle;
   final List<MemberEntity> children;
   final String selectedBizDate;
@@ -474,15 +450,6 @@ class _HomeworkMainPanel extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       children: [
-        Text(
-          dateTitle,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 18),
         ...children.map(
           (m) => Padding(
             padding: const EdgeInsets.only(bottom: 16),
