@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/api_config.dart' show kFamilyApiDefaultOrigin;
+import '../../../core/constants/build_stamp.dart' show kAppBuildStamp;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
 import '../data/family_api_client.dart';
@@ -155,7 +156,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
                 children: [
                   Material(
                     color: Colors.white.withValues(alpha: 0.06),
@@ -404,6 +405,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     style: TextStyle(color: muted, fontSize: 14),
                   ),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text(
+                '版本 $kAppBuildStamp',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: muted,
+                  fontSize: 12,
+                  height: 1.3,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ),
           ],
