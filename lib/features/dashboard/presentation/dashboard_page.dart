@@ -11,6 +11,7 @@ import '../../../shared/providers/task_ui_providers.dart';
 import '../data/dashboard_life_menu_catalog.dart';
 import '../data/dashboard_prototype_models.dart';
 import '../data/family_api_client.dart';
+import '../providers/dashboard_home_title_provider.dart';
 import '../providers/dashboard_remote_providers.dart';
 import '../providers/family_api_base_url_provider.dart';
 
@@ -68,6 +69,8 @@ class DashboardPage extends ConsumerWidget {
     final homeworkAsync = ref.watch(dashboardHomeworkRowsProvider);
     final pointsAsync = ref.watch(dashboardPointsRowsProvider);
     final lifeMenuAsync = ref.watch(dashboardLifeMenuItemsProvider);
+    final homeTitle = ref.watch(dashboardHomeTitleProvider).valueOrNull ??
+        DashboardHomeTitleNotifier.kDefaultTitle;
 
     final lifeMenuItems = lifeMenuAsync.when(
       data: (v) => v,
@@ -127,7 +130,7 @@ class DashboardPage extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const _DashboardHeader(),
+                              _DashboardHeader(title: homeTitle),
                               const SizedBox(height: 12),
                               IntrinsicHeight(
                                 child: Row(
@@ -221,7 +224,9 @@ class DashboardPage extends ConsumerWidget {
 }
 
 class _DashboardHeader extends StatefulWidget {
-  const _DashboardHeader();
+  const _DashboardHeader({required this.title});
+
+  final String title;
 
   @override
   State<_DashboardHeader> createState() => _DashboardHeaderState();
@@ -256,9 +261,9 @@ class _DashboardHeaderState extends State<_DashboardHeader> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                '我家',
-                style: TextStyle(
+              Text(
+                widget.title,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
                   fontWeight: FontWeight.bold,

@@ -8,6 +8,7 @@ import '../../../core/constants/api_config.dart' show kFamilyApiDefaultOrigin;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
 import '../data/family_api_client.dart';
+import '../providers/dashboard_home_title_provider.dart';
 import '../providers/dashboard_remote_providers.dart';
 import '../providers/family_api_base_url_provider.dart';
 import '../../../shared/providers/task_ui_providers.dart';
@@ -28,14 +29,39 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
+  bool _editingHomeTitle = false;
   bool _editingServer = false;
   bool _validating = false;
+  late final TextEditingController _homeTitleCtrl = TextEditingController();
   late final TextEditingController _serverCtrl = TextEditingController();
 
   @override
   void dispose() {
+    _homeTitleCtrl.dispose();
     _serverCtrl.dispose();
     super.dispose();
+  }
+
+  void _startEditHomeTitle(String current) {
+    setState(() {
+      _editingHomeTitle = true;
+      _homeTitleCtrl.text = current;
+    });
+  }
+
+  void _cancelHomeTitle() {
+    setState(() => _editingHomeTitle = false);
+  }
+
+  Future<void> _saveHomeTitle() async {
+    await ref
+        .read(dashboardHomeTitleProvider.notifier)
+        .persistTitle(_homeTitleCtrl.text);
+    if (!mounted) return;
+    setState(() => _editingHomeTitle = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('主页标题已保存')),
+    );
   }
 
   void _startEdit(String currentUrl) {
@@ -112,6 +138,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55);
     final baseAsync = ref.watch(familyApiOriginNotifierProvider);
     final displayOrigin = baseAsync.valueOrNull ?? kFamilyApiDefaultOrigin;
+    final homeTitleAsync = ref.watch(dashboardHomeTitleProvider);
+    final displayHomeTitle = homeTitleAsync.valueOrNull ??
+        DashboardHomeTitleNotifier.kDefaultTitle;
 
     return Scaffold(
       backgroundColor: AppTheme.shellBackground,
@@ -128,15 +157,109 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
                 children: [
-                  Text(
-                    '网络',
-                    style: TextStyle(
-                      color: muted,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                  Material(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text(
+                            '标题设置',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: !_editingHomeTitle
+                                    ? Text(
+                                        displayHomeTitle,
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.85,
+                                          ),
+                                          fontSize: 15,
+                                        ),
+                                      )
+                                    : TextField(
+                                        controller: _homeTitleCtrl,
+                                        autofocus: true,
+                                        maxLength: 32,
+                                        maxLines: 1,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                        ),
+                                        decoration: InputDecoration(
+                                          isDense: true,
+                                          counterText: '',
+                                          hintText: '例如：我家',
+                                          hintStyle: TextStyle(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.35,
+                                            ),
+                                          ),
+                                          filled: true,
+                                          fillColor: Colors.black.withValues(
+                                            alpha: 0.25,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            borderSide: BorderSide.none,
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 40,
+                                  minHeight: 40,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: _editingHomeTitle
+                                    ? _saveHomeTitle
+                                    : () => _startEditHomeTitle(
+                                          displayHomeTitle,
+                                        ),
+                                icon: Icon(
+                                  _editingHomeTitle
+                                      ? Icons.check_rounded
+                                      : Icons.edit_rounded,
+                                  color: _editingHomeTitle
+                                      ? const Color(0xFF69F0AE)
+                                      : Colors.white.withValues(alpha: 0.75),
+                                ),
+                                tooltip: _editingHomeTitle ? '保存' : '编辑',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  if (_editingHomeTitle) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _cancelHomeTitle,
+                        child: const Text('取消'),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
                   Material(
                     color: Colors.white.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(14),
