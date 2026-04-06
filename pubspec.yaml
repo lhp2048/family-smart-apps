@@ -47,18 +47,19 @@ flutter_launcher_icons:
   # 主资源：1024×1024 PNG，建议全幅不透明渐变（避免透明区被 iOS 填成白底）
   image_path: assets/app_icon/app_icon_source.png
   min_sdk_android: 21
-  adaptive_icon_background: "#2563EB"
+  # 与 AppTheme.shellBackground 一致，避免与主页深色底脱节
+  adaptive_icon_background: "#1A1A2E"
   adaptive_icon_foreground: assets/app_icon/app_icon_source.png
   # 默认 16% 缩进会在前景周围留出「环」；略减小使图标更满幅
   adaptive_icon_foreground_inset: 8
   # flutter_launcher_icons 默认把透明像素与 #fff 混合，会整片发白，须与主色一致
-  background_color_ios: "#2563EB"
+  background_color_ios: "#1A1A2E"
 
 flutter_native_splash:
-  color: "#1d4ed8"
+  color: "#1A1A2E"
   image: assets/app_icon/app_icon_source.png
   android_12:
-    color: "#1d4ed8"
+    color: "#1A1A2E"
     image: assets/app_icon/app_icon_source.png
   web: true
 
