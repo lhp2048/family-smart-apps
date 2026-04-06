@@ -50,7 +50,7 @@ Future<void> _seedFeatureEntries(Isar isar, DateTime now) async {
   final entries = <FeatureEntryEntity>[
     FeatureEntryEntity()
       ..entryKey = 'tasks'
-      ..title = '作业完成情况'
+      ..title = '作业进度'
       ..icon = 'fact_check_outlined'
       ..sort = 10
       ..enabled = true
@@ -90,7 +90,11 @@ Future<void> _seedFeatureEntries(Isar isar, DateTime now) async {
 Future<void> _seedTaskDates(Isar isar, DateTime now) async {
   final list = <TaskDateEntity>[];
   for (var i = 0; i < 7; i++) {
-    final d = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+    final d = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: i));
     final bd = formatBizDate(d);
     list.add(
       TaskDateEntity()

@@ -31,12 +31,25 @@ String _sidebarDateShort(String bizDate) {
   return bizDate;
 }
 
-String _mainDateTitle(String bizDate, String weekdayCn) {
-  final p = bizDate.split('-');
-  if (p.length != 3) return '$bizDate $weekdayCn';
-  final m = p[1];
-  final d = p[2];
-  return '$m月$d日 $weekdayCn';
+DateTime? _parseBizDateYmd(String bizDate) {
+  try {
+    final p = bizDate.split('-');
+    if (p.length != 3) return null;
+    return DateTime(int.parse(p[0]), int.parse(p[1]), int.parse(p[2]));
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 主内容区顶部：最近一周对应的起止日期（与侧栏日期列表一致）。
+String _weekRangeLabelForTasks(List<TaskDateEntity> dates) {
+  if (dates.isEmpty) return '最近一周';
+  final sorted = [...dates]..sort((a, b) => a.bizDate.compareTo(b.bizDate));
+  final start = _parseBizDateYmd(sorted.first.bizDate);
+  final end = _parseBizDateYmd(sorted.last.bizDate);
+  if (start == null || end == null) return '最近一周';
+  String fmt(DateTime d) => '${d.month}月${d.day}日';
+  return '最近一周 ${fmt(start)}—${fmt(end)}';
 }
 
 Map<String, dynamic> _decodeMap(String json) {
@@ -80,7 +93,10 @@ class TasksPage extends ConsumerWidget {
       unawaited(TaskSelectedBizDatePrefs.write(next));
     });
 
-    ref.listen<AsyncValue<List<TaskDateEntity>>>(taskDatesAsyncProvider, (prev, next) {
+    ref.listen<AsyncValue<List<TaskDateEntity>>>(taskDatesAsyncProvider, (
+      prev,
+      next,
+    ) {
       next.whenData((dates) {
         if (dates.isEmpty) return;
         unawaited(_reconcileTaskBizDateSelection(ref, dates));
@@ -95,40 +111,70 @@ class TasksPage extends ConsumerWidget {
             ShellScreenHeader(
               onBack: () => context.pop(),
               icon: Icons.layers_rounded,
-              title: '作业完成情况',
+              title: '作业进度',
             ),
             Expanded(
               child: datesAsync.when(
-                loading: () => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-                error: (e, _) => AppEmpty(
-                  message: '作业数据加载失败：$e',
-                ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => AppEmpty(message: '作业数据加载失败：$e'),
                 data: (dates) => dates.isEmpty
                     ? const AppEmpty(message: '暂无作业日期数据')
                     : LayoutBuilder(
-                      builder: (context, c) {
-                        final wide = c.maxWidth >= 720;
-                        if (wide) {
-                          return Row(
+                        builder: (context, c) {
+                          final wide = c.maxWidth >= 720;
+                          if (wide) {
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SizedBox(
+                                  width: 128,
+                                  child: _HistorySidebar(
+                                    dates: dates,
+                                    selectedBizDate: selected,
+                                    onSelect: (bd) {
+                                      ref
+                                              .read(
+                                                selectedTaskBizDateProvider
+                                                    .notifier,
+                                              )
+                                              .state =
+                                          bd;
+                                    },
+                                  ),
+                                ),
+                                VerticalDivider(
+                                  width: 1,
+                                  thickness: 1,
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                ),
+                                Expanded(
+                                  child: _HomeworkDateSwipePanel(dates: dates),
+                                ),
+                              ],
+                            );
+                          }
+                          return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               SizedBox(
-                                width: 128,
+                                height: 80,
                                 child: _HistorySidebar(
                                   dates: dates,
                                   selectedBizDate: selected,
                                   onSelect: (bd) {
                                     ref
-                                        .read(selectedTaskBizDateProvider.notifier)
-                                        .state = bd;
+                                            .read(
+                                              selectedTaskBizDateProvider
+                                                  .notifier,
+                                            )
+                                            .state =
+                                        bd;
                                   },
+                                  horizontal: true,
                                 ),
                               ),
-                              VerticalDivider(
-                                width: 1,
-                                thickness: 1,
+                              Divider(
+                                height: 1,
                                 color: Colors.white.withValues(alpha: 0.08),
                               ),
                               Expanded(
@@ -136,34 +182,8 @@ class TasksPage extends ConsumerWidget {
                               ),
                             ],
                           );
-                        }
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(
-                              height: 80,
-                              child: _HistorySidebar(
-                                dates: dates,
-                                selectedBizDate: selected,
-                                onSelect: (bd) {
-                                  ref
-                                      .read(selectedTaskBizDateProvider.notifier)
-                                      .state = bd;
-                                },
-                                horizontal: true,
-                              ),
-                            ),
-                            Divider(
-                              height: 1,
-                              color: Colors.white.withValues(alpha: 0.08),
-                            ),
-                            Expanded(
-                              child: _HomeworkDateSwipePanel(dates: dates),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+                        },
+                      ),
               ),
             ),
           ],
@@ -245,20 +265,17 @@ class _HomeworkDateSwipePanelState
       },
       itemBuilder: (context, i) {
         final d = dates[i];
-        final bundleAsync =
-            ref.watch(homeworkItemsBundleForDateAsyncProvider(d.bizDate));
+        final bundleAsync = ref.watch(
+          homeworkItemsBundleForDateAsyncProvider(d.bizDate),
+        );
         return bundleAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(),
-          ),
+          loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => AppEmpty(message: '加载失败：$e'),
           data: (bundle) => childrenAsync.when(
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => AppEmpty(message: '成员加载失败：$e'),
             data: (children) => _HomeworkMainPanel(
-              dateTitle: _mainDateTitle(d.bizDate, d.weekday),
+              dateTitle: _weekRangeLabelForTasks(widget.dates),
               bundle: bundle,
               children: children,
               selectedBizDate: d.bizDate,
@@ -289,12 +306,16 @@ class _HistorySidebar extends ConsumerStatefulWidget {
 }
 
 class _HistorySidebarState extends ConsumerState<_HistorySidebar> {
-  final GlobalKey _selectedVisibleKey = GlobalKey(debugLabel: 'taskDateSelected');
+  final GlobalKey _selectedVisibleKey = GlobalKey(
+    debugLabel: 'taskDateSelected',
+  );
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollSelectedIntoView());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _scrollSelectedIntoView(),
+    );
   }
 
   @override
@@ -344,9 +365,7 @@ class _HistorySidebarState extends ConsumerState<_HistorySidebar> {
             borderRadius: BorderRadius.circular(14),
             child: Ink(
               decoration: BoxDecoration(
-                color: sel
-                    ? _kAccentPurple
-                    : const Color(0xFF2C2C3E),
+                color: sel ? _kAccentPurple : const Color(0xFF2C2C3E),
                 borderRadius: BorderRadius.circular(14),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -396,14 +415,12 @@ class _HistorySidebarState extends ConsumerState<_HistorySidebar> {
                     sel
                         ? Icons.description_outlined
                         : (allDone
-                            ? Icons.emoji_events_rounded
-                            : Icons.description_outlined),
+                              ? Icons.emoji_events_rounded
+                              : Icons.description_outlined),
                     size: 18,
                     color: sel
                         ? Colors.white
-                        : (allDone
-                            ? const Color(0xFFFFD54F)
-                            : Colors.white38),
+                        : (allDone ? const Color(0xFFFFD54F) : Colors.white38),
                   ),
                 ],
               ),
@@ -537,8 +554,10 @@ class _MemberHomeworkCard extends ConsumerWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: _kAccentPurple.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(20),
@@ -564,8 +583,7 @@ class _MemberHomeworkCard extends ConsumerWidget {
               value: ratio.clamp(0.0, 1.0),
               minHeight: 8,
               backgroundColor: Colors.white.withValues(alpha: 0.08),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(_kProgressFill),
+              valueColor: const AlwaysStoppedAnimation<Color>(_kProgressFill),
             ),
           ),
           const SizedBox(height: 16),

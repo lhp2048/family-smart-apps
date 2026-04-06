@@ -30,6 +30,14 @@ class FamilyApiOriginNotifier extends AsyncNotifier<String> {
     await prefs.setString(_kPrefsFamilyApiOrigin, origin);
     state = AsyncData(origin);
   }
+
+  /// 移除已保存的站点根（与 [kFamilyApiDefaultOrigin] 一致）。
+  /// 调用方应在随后执行 `family_api_cache_invalidation.dart` 中的失效逻辑。
+  Future<void> clearOrigin() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kPrefsFamilyApiOrigin);
+    state = const AsyncData(kFamilyApiDefaultOrigin);
+  }
 }
 
 /// 是否已在设置中保存非空站点根。

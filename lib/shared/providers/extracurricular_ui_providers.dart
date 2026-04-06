@@ -8,7 +8,7 @@ import '../../features/extracurricular/data/extracurricular_api_mappers.dart';
 import '../../features/extracurricular/data/extracurricular_models.dart';
 import 'task_ui_providers.dart';
 
-/// 未配置 API 时左侧筛选项（与历史 Mock 一致）
+/// 未配置 API 时左侧筛选项：全部 + 三个分类（与 Mock 条数一一对应）
 final kMockExtracurricularSidebarEntries = <ExtracurricularSidebarEntry>[
   const ExtracurricularSidebarEntry(
     filterId: ExtracurricularFilterIds.all,
@@ -29,16 +29,6 @@ final kMockExtracurricularSidebarEntries = <ExtracurricularSidebarEntry>[
     filterId: ExtracurricularFilterIds.tv,
     label: '电视剧',
     icon: Icons.tv_rounded,
-  ),
-  const ExtracurricularSidebarEntry(
-    filterId: ExtracurricularFilterIds.anime,
-    label: '动漫/漫画',
-    icon: Icons.sports_esports_rounded,
-  ),
-  const ExtracurricularSidebarEntry(
-    filterId: ExtracurricularFilterIds.doc,
-    label: '纪录片/其他',
-    icon: Icons.movie_creation_rounded,
   ),
 ];
 

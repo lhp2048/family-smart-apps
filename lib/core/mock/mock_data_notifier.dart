@@ -16,6 +16,7 @@ import '../../features/tasks/data/models/task_item_entity.dart';
 import '../../features/tasks/data/task_keys.dart';
 import '../../features/tasks/data/task_progress.dart';
 import '../../shared/models/feature_entry_entity.dart';
+import 'mock_test_label.dart';
 import '../../shared/models/home_summary_entity.dart';
 import '../../shared/models/member_entity.dart';
 import '../utils/biz_date.dart';
@@ -143,14 +144,14 @@ class MockAppState {
     final members = <MemberEntity>[
       MemberEntity()
         ..memberCode = 'parent1'
-        ..name = '家长'
+        ..name = mockTestLabel('家长')
         ..role = 'parent'
         ..status = 'active'
         ..createdAt = now
         ..updatedAt = now,
       MemberEntity()
         ..memberCode = 'xixi'
-        ..name = '曦曦'
+        ..name = mockTestLabel('曦曦')
         ..avatar = '👧'
         ..role = 'child'
         ..status = 'active'
@@ -158,7 +159,7 @@ class MockAppState {
         ..updatedAt = now,
       MemberEntity()
         ..memberCode = 'chuan'
-        ..name = '川川'
+        ..name = mockTestLabel('川川')
         ..avatar = '👦'
         ..role = 'child'
         ..status = 'active'
@@ -166,7 +167,7 @@ class MockAppState {
         ..updatedAt = now,
       MemberEntity()
         ..memberCode = 'mx'
-        ..name = 'mx'
+        ..name = mockTestLabel('mx')
         ..avatar = '👦'
         ..role = 'parent'
         ..status = 'active'
@@ -177,35 +178,35 @@ class MockAppState {
     final features = <FeatureEntryEntity>[
       FeatureEntryEntity()
         ..entryKey = 'tasks'
-        ..title = '作业完成情况'
+        ..title = mockTestLabel('作业进度')
         ..icon = 'fact_check_outlined'
         ..sort = 10
         ..enabled = true
         ..updatedAt = now,
       FeatureEntryEntity()
         ..entryKey = 'points'
-        ..title = '积分榜'
+        ..title = mockTestLabel('积分榜')
         ..icon = 'emoji_events_outlined'
         ..sort = 20
         ..enabled = true
         ..updatedAt = now,
       FeatureEntryEntity()
         ..entryKey = 'wishwall'
-        ..title = '心愿墙'
+        ..title = mockTestLabel('心愿墙')
         ..icon = 'favorite_border'
         ..sort = 30
         ..enabled = true
         ..updatedAt = now,
       FeatureEntryEntity()
         ..entryKey = 'timemachine'
-        ..title = '时光机'
+        ..title = mockTestLabel('时光机')
         ..icon = 'history_edu_outlined'
         ..sort = 40
         ..enabled = true
         ..updatedAt = now,
       FeatureEntryEntity()
         ..entryKey = 'debate'
-        ..title = '话题辩论'
+        ..title = mockTestLabel('话题辩论')
         ..icon = 'forum_outlined'
         ..sort = 50
         ..enabled = true
@@ -229,14 +230,9 @@ class MockAppState {
       );
     }
 
-    const homeworkTaskDefs = <(String, String)>[
-      ('t1', '学校作业'),
-      ('t2', '学习机同步练习'),
-      ('t3', '英语音节练习'),
-      ('t4', '数学思维训练'),
-      ('t5', '语文阅读打卡'),
-      ('t6', '科学小实验'),
-      ('t7', '课外阅读 30 分钟'),
+    final homeworkTaskDefs = <(String, String)>[
+      ('t1', mockTestLabel('学校作业')),
+      ('t2', mockTestLabel('学习机同步练习')),
     ];
 
     var allGroups = <TaskGroupEntity>[];
@@ -249,7 +245,7 @@ class MockAppState {
           ..bizDateGroupKey = taskGroupKey(bd, 'homework')
           ..bizDate = bd
           ..groupCode = 'homework'
-          ..title = '作业'
+          ..title = mockTestLabel('作业')
           ..progress = 0
           ..sort = 1
           ..updatedAt = now,
@@ -316,14 +312,10 @@ class MockAppState {
         ..updatedAt = now;
     }
 
-    const homeworkRows = [
-      DashboardHomeworkRow('曦曦', '-/-'),
-      DashboardHomeworkRow('川川', '-/-'),
-    ];
-    const pointsRows = [
-      DashboardPointsRow('曦曦', 65),
-      DashboardPointsRow('川川', 80),
-    ];
+    final homeworkRows = [const DashboardHomeworkRow('未配置', '—')];
+    final pointsRows = [const DashboardPointsRow('未配置', 0)];
+
+    /// 首页「学习和生活」入口：保持与正式版一致的标题/副标题，不带【测试】前缀。
     final lifeMenu = <DashboardLifeMenuItem>[
       const DashboardLifeMenuItem(
         title: '心愿墙',
@@ -382,20 +374,56 @@ class MockAppState {
       ),
     ];
 
-    const pointsRules = <PointsRuleLine>[
-      PointsRuleLine(isPositive: true, description: '7:10 前起床', value: 5),
-      PointsRuleLine(isPositive: true, description: '19:30 前完成作业', value: 15),
-      PointsRuleLine(isPositive: true, description: '20:00 前完成作业', value: 10),
-      PointsRuleLine(isPositive: true, description: '20:30 前完成作业', value: 5),
-      PointsRuleLine(isPositive: true, description: '老师表扬 / 获奖', value: 15),
-      PointsRuleLine(isPositive: true, description: '竞赛活动', value: 5),
-      PointsRuleLine(isPositive: false, description: '21:30 作业未完成', value: 5),
-      PointsRuleLine(isPositive: false, description: '22:00 未入睡', value: 5),
-      PointsRuleLine(isPositive: false, description: '被老师点名 / 争吵', value: 10),
+    final pointsRules = <PointsRuleLine>[
+      PointsRuleLine(
+        isPositive: true,
+        description: mockTestLabel('7:10 前起床'),
+        value: 5,
+      ),
+      PointsRuleLine(
+        isPositive: true,
+        description: mockTestLabel('19:30 前完成作业'),
+        value: 15,
+      ),
+      PointsRuleLine(
+        isPositive: true,
+        description: mockTestLabel('20:00 前完成作业'),
+        value: 10,
+      ),
+      PointsRuleLine(
+        isPositive: true,
+        description: mockTestLabel('20:30 前完成作业'),
+        value: 5,
+      ),
+      PointsRuleLine(
+        isPositive: true,
+        description: mockTestLabel('老师表扬 / 获奖'),
+        value: 15,
+      ),
+      PointsRuleLine(
+        isPositive: true,
+        description: mockTestLabel('竞赛活动'),
+        value: 5,
+      ),
+      PointsRuleLine(
+        isPositive: false,
+        description: mockTestLabel('21:30 作业未完成'),
+        value: 5,
+      ),
+      PointsRuleLine(
+        isPositive: false,
+        description: mockTestLabel('22:00 未入睡'),
+        value: 5,
+      ),
+      PointsRuleLine(
+        isPositive: false,
+        description: mockTestLabel('被老师点名 / 争吵'),
+        value: 10,
+      ),
     ];
 
     final pointsWeekCycles = <PointsWeekCycle>[
-      const PointsWeekCycle(
+      PointsWeekCycle(
         id: 'w2026_0330_0405',
         rangeShort: '03.30—04.05',
         rangeTitleLong: '2026年03月30日 — 04月05日',
@@ -413,7 +441,7 @@ class MockAppState {
                 person: '川川',
                 item: '完成作业',
                 pointsDelta: 5,
-                remark: '20:30 前完成 6/7 项作业',
+                remark: '20:30 前完成 1/2 项作业',
               ),
             ],
           ),
@@ -427,7 +455,7 @@ class MockAppState {
                 person: '川川',
                 item: '完成作业',
                 pointsDelta: 15,
-                remark: '19:30 前完成全部 7/7 作业',
+                remark: '19:30 前完成全部 2/2 作业',
               ),
               PointsLogRow(
                 time: '07:14',
@@ -440,7 +468,7 @@ class MockAppState {
           ),
         ],
       ),
-      const PointsWeekCycle(
+      PointsWeekCycle(
         id: 'w2026_0323_0329',
         rangeShort: '03.23—03.29',
         rangeTitleLong: '2026年03月23日 — 03月29日',
@@ -449,7 +477,7 @@ class MockAppState {
         netGainByMemberCode: {'xixi': 0, 'chuan': -15},
         dailyLogs: [],
       ),
-      const PointsWeekCycle(
+      PointsWeekCycle(
         id: 'w2026_0316_0322',
         rangeShort: '03.16—03.22',
         rangeTitleLong: '2026年03月16日 — 03月22日',
@@ -460,27 +488,27 @@ class MockAppState {
       ),
     ];
 
-    const wishwallItems = <WishwallItem>[
+    final wishwallItems = <WishwallItem>[
       WishwallItem(
         id: 'w1',
         memberCode: 'chuan',
-        content: '如果能减肥10斤，妈妈说给一笔零花钱💰',
+        content: mockTestLabel('如果能减肥10斤，妈妈说给一笔零花钱💰'),
         cardEmoji: '💪',
         fulfilled: false,
-        createdAtLabel: '2026-03-31 23:22',
+        createdAtLabel: mockTestLabel('2026-03-31 23:22'),
       ),
       WishwallItem(
         id: 'w2',
         memberCode: 'chuan',
-        content: '每周末陪爸爸去遛弯，坚持一个月，就能得到一辆自行车🚲',
+        content: mockTestLabel('每周末陪爸爸去遛弯，坚持一个月，就能得到一辆自行车🚲'),
         cardEmoji: '🚲',
         fulfilled: false,
-        createdAtLabel: '2026-03-31 23:22',
+        createdAtLabel: mockTestLabel('2026-03-31 23:22'),
       ),
     ];
 
-    const timemachineEntries = <TimemachineEntry>[
-      TimemachineEntry(
+    final timemachineEntries = <TimemachineEntry>[
+      const TimemachineEntry(
         id: 'tm1',
         bizDate: '2026-04-01',
         title: '4月1日 🏀 篮球场上的小明星',
@@ -488,73 +516,18 @@ class MockAppState {
             '今天下午带曦曦去社区篮球场，她一进门眼睛就亮了。练习赛里，她第一次成功断到了球，朝我大喊：「爸爸！我会抢球啦！」✨\n\n'
             '回家路上她还在比划运球动作。看着她从不爱到敢上场，我们觉得，自信和敢于尝试，比进球数珍贵得多。🏆',
       ),
-      TimemachineEntry(
-        id: 'tm2',
-        bizDate: '2026-04-01',
-        title: '4月1日 🌸 晚饭桌旁的笑声',
-        body: '晚上一家人围坐吃饭，曦曦主动讲了学校里的趣事，川川则科普起了篮球规则。妈妈说：「今天家里气氛💯。」',
-      ),
-      TimemachineEntry(
-        id: 'tm3',
-        bizDate: '2026-03-30',
-        title: '新的一周，双双在线 🌟',
-        body:
-            '这一周开局不错：川川和曦曦都能在晚上八点前把作业收尾。英语听读两人都打卡了，数学订正也及时完成。\n\n'
-            '反思：把时间切成小块、先难后易，效率明显提高。希望把这种节奏坚持成习惯。💪',
-      ),
-      TimemachineEntry(
-        id: 'tm4',
-        bizDate: '2026-03-28',
-        title: '3月28日 📚 图书馆半日',
-        body: '周末上午泡图书馆，各自挑了感兴趣的书。川川迷上了科普，曦曦读完了半本桥梁书。',
-      ),
-      TimemachineEntry(
-        id: 'tm5',
-        bizDate: '2026-03-28',
-        title: '3月28日 🎨 随手画的小创作',
-        body: '下午自由画画时间，曦曦画了一幅「全家去野餐」，配色大胆，被贴在了冰箱上。',
-      ),
-      TimemachineEntry(
-        id: 'tm6',
-        bizDate: '2026-03-25',
-        title: '3月25日 🎹 练琴小进步',
-        body: '曦曦曲子终于连贯了一遍，虽然还有错音，但态度很认真，自己要求再练两遍。',
-      ),
-      TimemachineEntry(
-        id: 'tm7',
-        bizDate: '2026-03-22',
-        title: '3月22日 🏃 黄昏跑步',
-        body: '全家下楼慢跑两圈，川川配速最稳，曦曦最后一公里坚持没停。',
-      ),
-      TimemachineEntry(
-        id: 'tm8',
-        bizDate: '2026-03-22',
-        title: '3月22日 🥣 厨房小帮手',
-        body: '川川帮忙洗菜、摆盘，说「下次想学煎蛋」。',
-      ),
-      TimemachineEntry(
-        id: 'tm9',
-        bizDate: '2026-03-18',
-        title: '3月18日 ✅ 单科小测反馈',
-        body: '数学老师留言表扬计算准确率提高，回家一起复盘了错题本。',
-      ),
-      TimemachineEntry(
-        id: 'tm10',
-        bizDate: '2026-03-15',
-        title: '3月15日 🌙 睡前聊天',
-        body: '聊了「最想去的三个地方」，两人答案截然不同，笑作一团。',
-      ),
     ];
 
     const debateGuideSteps = <String>['主持人读题目', '选择立场', '陈述理由', '换边辩论', '总结'];
 
-    const debateDayBundles = <DebateDayBundle>[
+    /// Mock：仅保留单日、单辩题，便于演示。
+    final debateDayBundles = <DebateDayBundle>[
       DebateDayBundle(
         bizDate: '2026-03-26',
         mainTitle: '饭桌话题辩论',
         scheduleHint: '2026年03月26日 · 每天17:00更新',
         guideSteps: debateGuideSteps,
-        topics: [
+        topics: const [
           DebateTopicItem(
             id: 'd1',
             categoryTag: '哲思与价值观',
@@ -563,170 +536,14 @@ class MockAppState {
             proBody: '努力决定下限、运气决定上限、持续努力创造机会。',
             conBody: '机遇很重要、环境因素大、有时努力未必有结果。',
           ),
-          DebateTopicItem(
-            id: 'd2',
-            categoryTag: '生活与健康',
-            topicIndex: 2,
-            question: '小学生该不该自己管零花钱？',
-            proBody: '从小学习规划与责任，适度试错更懂金钱价值。',
-            conBody: '自控力尚不成熟，家长引导更稳妥，避免攀比。',
-          ),
-        ],
-      ),
-      DebateDayBundle(
-        bizDate: '2026-03-25',
-        mainTitle: '饭桌话题辩论',
-        scheduleHint: '2026年03月25日 · 每天17:00更新',
-        guideSteps: debateGuideSteps,
-        topics: [
-          DebateTopicItem(
-            id: 'd3',
-            categoryTag: '学习与成长',
-            topicIndex: 1,
-            question: '周末应该先玩还是先写作业？',
-            proBody: '先完成作业心里踏实，玩得更尽兴。',
-            conBody: '适度放松后效率更高，要尊重孩子的节奏。',
-          ),
-        ],
-      ),
-      DebateDayBundle(
-        bizDate: '2026-03-24',
-        mainTitle: '饭桌话题辩论',
-        scheduleHint: '2026年03月24日 · 每天17:00更新',
-        guideSteps: debateGuideSteps,
-        topics: [
-          DebateTopicItem(
-            id: 'd4',
-            categoryTag: '家庭与社会',
-            topicIndex: 1,
-            question: '做家务算不算孩子的义务？',
-            proBody: '家是共同的，分担家务培养责任感。',
-            conBody: '学业压力大时，应以学习为主、家务量力而行。',
-          ),
         ],
       ),
     ];
 
-    const extracurricularItems = <ExtracurricularItem>[
-      ExtracurricularItem(
+    /// Mock：三个分类（黄金屋 / 第七艺术 / 电视剧），每类一条。
+    final extracurricularItems = <ExtracurricularItem>[
+      const ExtracurricularItem(
         id: 'ec1',
-        title: '家有儿女',
-        filterId: ExtracurricularFilterIds.tv,
-        mediumKind: ExtracurricularMediumKind.tvSeries,
-        mediumLabel: '电视剧',
-        year: 2005,
-        genre: '家庭/喜剧',
-        ratingStars: 5,
-        description: '重组家庭的日常爆笑与温情，适合全家一起看，轻松讨论亲子关系与成长话题。',
-        emoji: '🏠',
-        watched: false,
-      ),
-      ExtracurricularItem(
-        id: 'ec2',
-        title: '奔跑吧',
-        filterId: ExtracurricularFilterIds.doc,
-        mediumKind: ExtracurricularMediumKind.documentary,
-        mediumLabel: '纪录片/其他',
-        year: 2014,
-        genre: '真人秀/竞技',
-        ratingStars: 4,
-        description: '户外竞技与团队协作，可看团队合作与坚持，家长可引导孩子聊「规则与公平」。',
-        emoji: '🏃',
-        watched: false,
-      ),
-      ExtracurricularItem(
-        id: 'ec3',
-        title: '主持人大赛',
-        filterId: ExtracurricularFilterIds.doc,
-        mediumKind: ExtracurricularMediumKind.documentary,
-        mediumLabel: '纪录片/其他',
-        year: 2019,
-        genre: '竞技/演讲',
-        ratingStars: 5,
-        description: '专业主持与即兴表达的高水平对决，适合启发孩子的语言组织与临场反应。',
-        emoji: '🎤',
-        watched: false,
-      ),
-      ExtracurricularItem(
-        id: 'ec4',
-        title: '十三邀',
-        filterId: ExtracurricularFilterIds.doc,
-        mediumKind: ExtracurricularMediumKind.documentary,
-        mediumLabel: '纪录片/其他',
-        year: 2016,
-        genre: '访谈/人文',
-        ratingStars: 5,
-        description: '深度对话不同领域人物，拓展视野，适合高年级亲子共赏后讨论价值观。',
-        emoji: '🎙️',
-        watched: false,
-      ),
-      ExtracurricularItem(
-        id: 'ec5',
-        title: '开讲啦',
-        filterId: ExtracurricularFilterIds.doc,
-        mediumKind: ExtracurricularMediumKind.documentary,
-        mediumLabel: '纪录片/其他',
-        year: 2012,
-        genre: '演讲/青年',
-        ratingStars: 4,
-        description: '青年公开课形式，嘉宾分享人生选择与坚持，可联系孩子的目标与兴趣。',
-        emoji: '📣',
-        watched: false,
-      ),
-      ExtracurricularItem(
-        id: 'ec6',
-        title: '新国辩',
-        filterId: ExtracurricularFilterIds.doc,
-        mediumKind: ExtracurricularMediumKind.documentary,
-        mediumLabel: '纪录片/其他',
-        year: 2013,
-        genre: '辩论/思辨',
-        ratingStars: 5,
-        description: '华语辩论赛事精选，逻辑与表达并重，可与家庭「话题辩论」联动观看。',
-        emoji: '⚖️',
-        watched: false,
-      ),
-      ExtracurricularItem(
-        id: 'ec7',
-        title: '我的团长我的团',
-        filterId: ExtracurricularFilterIds.tv,
-        mediumKind: ExtracurricularMediumKind.tvSeries,
-        mediumLabel: '电视剧',
-        year: 2009,
-        genre: '战争/人性',
-        ratingStars: 5,
-        description: '群像刻画深刻，适合家长遴选片段与孩子讨论勇气、责任与历史感受。',
-        emoji: '📦',
-        watched: false,
-      ),
-      ExtracurricularItem(
-        id: 'ec8',
-        title: '指环王：护戒使者',
-        filterId: ExtracurricularFilterIds.seventh,
-        mediumKind: ExtracurricularMediumKind.movie,
-        mediumLabel: '电影',
-        year: 2001,
-        genre: '奇幻/史诗',
-        ratingStars: 5,
-        description: '经典奇幻三部曲开篇，友情与使命主题突出，可按年龄段分次观看。',
-        emoji: '💍',
-        watched: false,
-      ),
-      ExtracurricularItem(
-        id: 'ec9',
-        title: '指环王：双塔奇兵',
-        filterId: ExtracurricularFilterIds.seventh,
-        mediumKind: ExtracurricularMediumKind.movie,
-        mediumLabel: '电影',
-        year: 2002,
-        genre: '奇幻/史诗',
-        ratingStars: 5,
-        description: '中段战役与角色成长高潮迭起，建议与第一部连贯观看体验更佳。',
-        emoji: '🗼',
-        watched: false,
-      ),
-      ExtracurricularItem(
-        id: 'ec10',
         title: '哈利·波特与魔法石',
         filterId: ExtracurricularFilterIds.golden,
         mediumKind: ExtracurricularMediumKind.book,
@@ -736,19 +553,32 @@ class MockAppState {
         ratingStars: 5,
         description: '魔法世界入门篇，可亲子共读或先看片再读书，激发阅读兴趣。',
         emoji: '📖',
-        watched: true,
+        watched: false,
       ),
-      ExtracurricularItem(
-        id: 'ec11',
-        title: '罗小黑战记',
-        filterId: ExtracurricularFilterIds.anime,
-        mediumKind: ExtracurricularMediumKind.anime,
-        mediumLabel: '动漫',
-        year: 2019,
-        genre: '动画/冒险',
+      const ExtracurricularItem(
+        id: 'ec2',
+        title: '指环王：护戒使者',
+        filterId: ExtracurricularFilterIds.seventh,
+        mediumKind: ExtracurricularMediumKind.movie,
+        mediumLabel: '电影',
+        year: 2001,
+        genre: '奇幻/史诗',
         ratingStars: 5,
-        description: '国漫治愈系代表作之一，画风清新，适合全家轻松观看。',
-        emoji: '🐱',
+        description: '经典奇幻开篇，友情与使命主题突出，可按年龄段分次观看。',
+        emoji: '💍',
+        watched: false,
+      ),
+      const ExtracurricularItem(
+        id: 'ec3',
+        title: '家有儿女',
+        filterId: ExtracurricularFilterIds.tv,
+        mediumKind: ExtracurricularMediumKind.tvSeries,
+        mediumLabel: '电视剧',
+        year: 2005,
+        genre: '家庭/喜剧',
+        ratingStars: 5,
+        description: '重组家庭的日常爆笑与温情，适合全家一起看，轻松讨论亲子关系与成长话题。',
+        emoji: '🏠',
         watched: false,
       ),
     ];

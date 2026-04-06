@@ -10,9 +10,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
 import '../data/family_api_client.dart';
 import '../providers/dashboard_home_title_provider.dart';
-import '../providers/dashboard_remote_providers.dart';
+import '../providers/family_api_cache_invalidation.dart';
 import '../providers/family_api_base_url_provider.dart';
-import '../../../shared/providers/task_ui_providers.dart';
 import 'server_origin_qr_scan_page.dart';
 
 bool get _serverOriginScanSupported =>
@@ -101,17 +100,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Future<void> _confirmServerUrl() async {
     if (_validating) return;
+    final trimmed = _serverCtrl.text.trim();
+    if (trimmed.isEmpty) {
+      await _clearServerUrl();
+      return;
+    }
     setState(() => _validating = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await FamilyApiClient.validateServerBaseUrl(_serverCtrl.text);
+      await FamilyApiClient.validateServerBaseUrl(trimmed);
       await ref
           .read(familyApiOriginNotifierProvider.notifier)
-          .persistValidatedOrigin(_serverCtrl.text);
-      ref.invalidate(dashboardHomeworkRowsProvider);
-      ref.invalidate(dashboardPointsRowsProvider);
-      ref.invalidate(dashboardLifeMenuItemsProvider);
-      ref.read(taskRemoteRefreshProvider.notifier).state++;
+          .persistValidatedOrigin(trimmed);
+      invalidateFamilyApiCaches(ref);
       if (!mounted) return;
       setState(() {
         _editingServer = false;
@@ -130,6 +131,29 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       messenger.showSnackBar(
         SnackBar(content: Text('校验失败：$e')),
       );
+    }
+  }
+
+  Future<void> _clearServerUrl() async {
+    if (_validating) return;
+    setState(() => _validating = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(familyApiOriginNotifierProvider.notifier).clearOrigin();
+      invalidateFamilyApiCaches(ref);
+      if (!mounted) return;
+      setState(() {
+        _editingServer = false;
+        _validating = false;
+        _serverCtrl.clear();
+      });
+      messenger.showSnackBar(
+        const SnackBar(content: Text('已清空服务器地址并断开远程数据缓存')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _validating = false);
+      messenger.showSnackBar(SnackBar(content: Text('清空失败：$e')));
     }
   }
 
@@ -395,8 +419,23 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ),
                     ),
                     Text(
-                      '确定后将请求 GET {上述地址}/api/v1/members 校验；成功且成员非空后保存站点根（不含 /api/v1）。',
+                      '确定后将请求 GET {上述地址}/api/v1/members 校验；成功且成员非空后保存站点根（不含 /api/v1）。留空并保存可清空地址。',
                       style: TextStyle(color: muted, fontSize: 12, height: 1.35),
+                    ),
+                  ],
+                  if (displayOrigin.isNotEmpty &&
+                      !baseAsync.isLoading &&
+                      !_editingServer) ...[
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _validating ? null : _clearServerUrl,
+                        child: Text(
+                          '清空服务器地址',
+                          style: TextStyle(color: Colors.orange.shade300),
+                        ),
+                      ),
                     ),
                   ],
                   const SizedBox(height: 28),

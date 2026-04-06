@@ -90,13 +90,13 @@ class DashboardPage extends ConsumerWidget {
 
     final homeworkRows = homeworkAsync.when(
       data: (rows) =>
-          rows.isEmpty ? const [DashboardHomeworkRow('暂无数据', '-/-')] : rows,
+          rows.isEmpty ? const [DashboardHomeworkRow('未配置', '—')] : rows,
       loading: () => const [DashboardHomeworkRow('加载中', '…')],
       error: (e, _) => [DashboardHomeworkRow('作业卡片', _shortDashboardError(e))],
     );
     final pointsRows = pointsAsync.when(
       data: (rows) =>
-          rows.isEmpty ? const [DashboardPointsRow('暂无数据', 0)] : rows,
+          rows.isEmpty ? const [DashboardPointsRow('未配置', 0)] : rows,
       loading: () => const [DashboardPointsRow('加载中', 0)],
       error: (e, _) => const [DashboardPointsRow('—', 0)],
     );

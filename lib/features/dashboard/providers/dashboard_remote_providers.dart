@@ -35,9 +35,7 @@ final dashboardPointsPeriodProvider = Provider<
 final dashboardHomeworkRowsProvider =
     FutureProvider<List<DashboardHomeworkRow>>((ref) async {
   if (!ref.watch(familyApiIsConfiguredProvider)) {
-    return const [
-      DashboardHomeworkRow('未配置', '去设置'),
-    ];
+    return const [DashboardHomeworkRow('未配置', '—')];
   }
   final client = ref.watch(familyApiClientProvider);
   final bizDate = ref.watch(dashboardHomeworkBizDateProvider);
