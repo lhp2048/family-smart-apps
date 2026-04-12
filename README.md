@@ -1,6 +1,6 @@
-# home-bot-app
+# family-bot-app
 
-家庭智能中心 Flutter 应用（`family_smart_center`）。
+家庭智能中心 Flutter 应用；本地工程目录名为 `family_smart_center`，**GitHub 仓库名为 `family-bot-app`**。
 
 ## Getting Started
 
