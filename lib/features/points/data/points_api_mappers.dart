@@ -63,8 +63,7 @@ String pointsRangeTitleLongFromPeriod(String periodStart, String periodEnd) {
   try {
     final s = DateTime.parse(periodStart);
     final e = DateTime.parse(periodEnd);
-    String ymd(DateTime d) =>
-        '${d.year}年${d.month}月${d.day}日';
+    String ymd(DateTime d) => '${d.year}年${d.month}月${d.day}日';
     return '${ymd(s)} — ${ymd(e)}';
   } catch (_) {
     return '$periodStart — $periodEnd';
@@ -163,9 +162,7 @@ PointsLogRow pointsLogRowFromApi(
   final ruleCode = m['ruleCode']?.toString() ?? '';
   final item = (apiItem != null && apiItem.isNotEmpty)
       ? apiItem
-      : (extra.isNotEmpty
-          ? extra
-          : (ruleCode.isNotEmpty ? ruleCode : '积分变动'));
+      : (extra.isNotEmpty ? extra : (ruleCode.isNotEmpty ? ruleCode : '积分变动'));
 
   var time = m['time']?.toString().trim() ?? '';
   if (time.isEmpty) {
@@ -183,8 +180,7 @@ PointsLogRow pointsLogRowFromApi(
   }
   if (time.isEmpty) time = '—';
 
-  final remarkCol =
-      extra.isNotEmpty && extra != item ? extra : '';
+  final remarkCol = extra.isNotEmpty && extra != item ? extra : '';
 
   return PointsLogRow(
     time: time,
@@ -195,7 +191,10 @@ PointsLogRow pointsLogRowFromApi(
   );
 }
 
-int _comparePointsRecordsSameDay(Map<String, dynamic> a, Map<String, dynamic> b) {
+int _comparePointsRecordsSameDay(
+  Map<String, dynamic> a,
+  Map<String, dynamic> b,
+) {
   final ca = a['createdAt']?.toString() ?? '';
   final cb = b['createdAt']?.toString() ?? '';
   if (ca.isNotEmpty || cb.isNotEmpty) {
@@ -205,8 +204,9 @@ int _comparePointsRecordsSameDay(Map<String, dynamic> a, Map<String, dynamic> b)
   final tb = b['time']?.toString() ?? '';
   final t = ta.compareTo(tb);
   if (t != 0) return t;
-  return (a['memberCode']?.toString() ?? '')
-      .compareTo(b['memberCode']?.toString() ?? '');
+  return (a['memberCode']?.toString() ?? '').compareTo(
+    b['memberCode']?.toString() ?? '',
+  );
 }
 
 /// 将周期内流水按业务日分组（日内排序：优先 `createdAt`，否则 `time`）
@@ -254,8 +254,34 @@ List<PointsDayLogGroup> groupPointsRecordsByBizDate(
   return out;
 }
 
+/// 解析流水 item 的 (类别头, 备注尾)，兼容「早起」+note 与「早起 —— xxx」。
+(String, String) _pointsRecordItemParts(Map<String, dynamic> r) {
+  final item = r['item']?.toString().trim() ?? '';
+  final note = r['note']?.toString().trim() ?? '';
+  final desc = r['description']?.toString().trim() ?? '';
+  for (final sep in ['——', '—', ' - ', '－']) {
+    if (item.contains(sep)) {
+      final parts = item.split(sep);
+      return (parts.first.trim(), parts.sublist(1).join(sep).trim());
+    }
+  }
+  if (note.isNotEmpty) return (item, note);
+  if (desc.isNotEmpty) {
+    for (final sep in ['——', '—', ' - ', '－']) {
+      if (desc.contains(sep)) {
+        final parts = desc.split(sep);
+        return (parts.first.trim(), parts.sublist(1).join(sep).trim());
+      }
+    }
+    return (item, desc);
+  }
+  return (item, '');
+}
+
 /// 合并重复流水（含同日同人重复的「初始积分」只保留一条）
-List<Map<String, dynamic>> dedupePointsRecords(List<Map<String, dynamic>> records) {
+List<Map<String, dynamic>> dedupePointsRecords(
+  List<Map<String, dynamic>> records,
+) {
   final seen = <String>{};
   final out = <Map<String, dynamic>>[];
   for (final r in records) {
@@ -264,16 +290,15 @@ List<Map<String, dynamic>> dedupePointsRecords(List<Map<String, dynamic>> record
     final ruleCode = r['ruleCode']?.toString() ?? '';
     final ruleType = r['ruleType']?.toString() ?? '';
     final item = r['item']?.toString().trim() ?? '';
-    final isBase = ruleCode == 'base_weekly' ||
-        ruleType == 'base' ||
-        item == '初始积分';
+    final isBase =
+        ruleCode == 'base_weekly' || ruleType == 'base' || item == '初始积分';
     final String key;
     if (isBase) {
       key = '$bd|$mc|base';
     } else {
       final delta = (r['delta'] as num?)?.toInt() ?? 0;
-      final head = item.split('——').first.trim();
-      key = '$bd|$mc|$delta|$head';
+      final parts = _pointsRecordItemParts(r);
+      key = '$bd|$mc|$delta|${parts.$1}|${parts.$2}';
     }
     if (seen.add(key)) out.add(r);
   }
@@ -285,26 +310,21 @@ List<Map<String, dynamic>> dedupePointsRecords(List<Map<String, dynamic>> record
   Map<String, int> totalsByMemberCode,
   Map<String, int> netGainByMemberCode,
   Map<String, String> displayNameByMemberCode,
-}) computePointsSummaryFromRecords(
+})
+computePointsSummaryFromRecords(
   List<Map<String, dynamic>> records,
   Set<String> memberCodes,
   Map<String, String> seedDisplayNames,
 ) {
-  final totals = <String, int>{
-    for (final code in memberCodes) code: 0,
-  };
-  final nets = <String, int>{
-    for (final code in memberCodes) code: 0,
-  };
+  final totals = <String, int>{for (final code in memberCodes) code: 0};
+  final nets = <String, int>{for (final code in memberCodes) code: 0};
   final names = Map<String, String>.from(seedDisplayNames);
 
   bool isBaseRecord(Map<String, dynamic> r) {
     final ruleCode = r['ruleCode']?.toString() ?? '';
     final ruleType = r['ruleType']?.toString() ?? '';
     final item = r['item']?.toString() ?? '';
-    return ruleCode == 'base_weekly' ||
-        ruleType == 'base' ||
-        item == '初始积分';
+    return ruleCode == 'base_weekly' || ruleType == 'base' || item == '初始积分';
   }
 
   for (final r in records) {
@@ -339,7 +359,7 @@ List<Map<String, dynamic>> dedupePointsRecords(List<Map<String, dynamic>> record
 
 /// 积分榜参与成员 code + 展示名（active 的 child / parent）
 Future<({Set<String> codes, Map<String, String> displayNames})>
-    fetchPointsMemberCodes(FamilyApiClient client) async {
+fetchPointsMemberCodes(FamilyApiClient client) async {
   final codes = <String>{};
   final names = <String, String>{};
   try {
@@ -364,7 +384,8 @@ Future<({Set<String> codes, Map<String, String> displayNames})>
   Map<String, int> netGainByMemberCode,
   Map<String, String> displayNameByMemberCode,
   int? commonBaseScore,
-}) parsePointsSummaryMembers(List<Map<String, dynamic>> list) {
+})
+parsePointsSummaryMembers(List<Map<String, dynamic>> list) {
   final totals = <String, int>{};
   final nets = <String, int>{};
   final names = <String, String>{};
@@ -389,31 +410,24 @@ Future<({Set<String> codes, Map<String, String> displayNames})>
   );
 }
 
-List<Map<String, dynamic>> pointsSummaryListFromData(Map<String, dynamic> data) {
+List<Map<String, dynamic>> pointsSummaryListFromData(
+  Map<String, dynamic> data,
+) {
   final raw = data['list'];
   if (raw is! List) return const [];
-  return raw
-      .whereType<Map>()
-      .map((e) => Map<String, dynamic>.from(e))
-      .toList();
+  return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 }
 
 List<Map<String, dynamic>> pointsRulesListFromData(Map<String, dynamic> data) {
   final raw = data['list'];
   if (raw is! List) return const [];
-  return raw
-      .whereType<Map>()
-      .map((e) => Map<String, dynamic>.from(e))
-      .toList();
+  return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 }
 
 List<Map<String, dynamic>> pointsWeeksListFromData(Map<String, dynamic> data) {
   final raw = data['list'];
   if (raw is! List) return const [];
-  return raw
-      .whereType<Map>()
-      .map((e) => Map<String, dynamic>.from(e))
-      .toList();
+  return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 }
 
 Future<List<Map<String, dynamic>>> fetchPointsRecordsForPeriod(
@@ -434,9 +448,10 @@ Future<List<Map<String, dynamic>>> fetchPointsRecordsForPeriod(
         page: page,
         pageSize: pageSize,
       );
-      final list = (data['list'] as List?)
-              ?.whereType<Map>()
-              .map((e) => Map<String, dynamic>.from(e)) ??
+      final list =
+          (data['list'] as List?)?.whereType<Map>().map(
+            (e) => Map<String, dynamic>.from(e),
+          ) ??
           <Map<String, dynamic>>[];
       all.addAll(list);
       final total = (data['total'] as num?)?.toInt() ?? 0;
@@ -460,7 +475,8 @@ Future<List<Map<String, dynamic>>> fetchPointsRecordsForPeriod(
     try {
       final part = await pull(memberCode: mc);
       for (final r in part) {
-        final k = '${pointsRecordBizDate(r)}|${r['memberCode']}|'
+        final k =
+            '${pointsRecordBizDate(r)}|${r['memberCode']}|'
             '${r['createdAt']}|${r['time']}|${r['item']}|${r['delta']}|'
             '${r['ruleCode']}|${r['note']}';
         if (seen.add(k)) merged.add(r);
@@ -515,7 +531,8 @@ Future<List<PointsWeekCycle>> fetchPointsWeekCyclesRemote(
       participantCodes,
       computed.displayNameByMemberCode,
     );
-    final isCur = meta.periodStart == current.periodStart &&
+    final isCur =
+        meta.periodStart == current.periodStart &&
         meta.periodEnd == current.periodEnd;
     cycles.add(
       PointsWeekCycle(
@@ -540,7 +557,9 @@ Future<List<PointsWeekCycle>> fetchPointsWeekCyclesRemote(
   return cycles;
 }
 
-Future<List<PointsRuleLine>> fetchPointsRulesRemote(FamilyApiClient client) async {
+Future<List<PointsRuleLine>> fetchPointsRulesRemote(
+  FamilyApiClient client,
+) async {
   final data = await client.fetchPointsRules();
   final raw = pointsRulesListFromData(data);
   return raw.map(pointsRuleLineFromApiMap).toList();
