@@ -14,10 +14,12 @@ Future<void> toggleExtracurricularWatchedRemote(
     'id': item.id,
     'filterId': item.filterId,
     'title': item.title,
-    'type': item.type,
+    'type': item.mediumLabel,
+    'genre': item.genre,
     'year': item.year,
-    'rating': item.rating,
-    'summary': item.summary,
+    'rating': item.ratingStars,
+    'desc': item.description,
+    'cover_emoji': item.emoji,
     'watched': !item.watched,
   });
   refreshAfterFamilyApiWrite(ref);

@@ -10,7 +10,6 @@ import '../../../features/dashboard/data/family_api_client.dart';
 import '../../../features/dashboard/providers/family_api_base_url_provider.dart';
 import '../../../shared/models/member_entity.dart';
 import '../../../shared/providers/points_ui_providers.dart';
-import '../../../shared/providers/task_ui_providers.dart';
 import '../data/points_prototype_models.dart';
 import '../data/points_remote_write.dart';
 
@@ -27,7 +26,7 @@ class PointsPage extends ConsumerWidget {
     final cyclesAsync = ref.watch(pointsWeekCyclesAsyncProvider);
     final rulesAsync = ref.watch(pointsRulesAsyncProvider);
     final selectedId = ref.watch(selectedPointsWeekIdProvider);
-    final childrenAsync = ref.watch(homeworkChildrenAsyncProvider);
+    final membersAsync = ref.watch(pointsMembersAsyncProvider);
 
     ref.listen(pointsWeekCyclesAsyncProvider, (prev, next) {
       next.whenData((cycles) {
@@ -47,7 +46,7 @@ class PointsPage extends ConsumerWidget {
     });
 
     Widget body() {
-      return childrenAsync.when(
+      return membersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
           child: Text(
@@ -57,7 +56,7 @@ class PointsPage extends ConsumerWidget {
             ),
           ),
         ),
-        data: (children) => cyclesAsync.when(
+        data: (members) => cyclesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
             child: Padding(
@@ -108,7 +107,7 @@ class PointsPage extends ConsumerWidget {
                           child: _WeekSidebar(
                             cycles: cycles,
                             selectedId: selectedId,
-                            children: children,
+                            children: members,
                             onSelect: (id) {
                               ref
                                   .read(selectedPointsWeekIdProvider.notifier)
@@ -125,7 +124,7 @@ class PointsPage extends ConsumerWidget {
                           child: _PointsWeekSwipePanel(
                             cycles: cycles,
                             rules: rules,
-                            children: children,
+                            children: members,
                           ),
                         ),
                       ],
@@ -139,7 +138,7 @@ class PointsPage extends ConsumerWidget {
                         child: _WeekSidebar(
                           cycles: cycles,
                           selectedId: selectedId,
-                          children: children,
+                          children: members,
                           horizontal: true,
                           onSelect: (id) {
                             ref
@@ -156,7 +155,7 @@ class PointsPage extends ConsumerWidget {
                         child: _PointsWeekSwipePanel(
                           cycles: cycles,
                           rules: rules,
-                          children: children,
+                          children: members,
                         ),
                       ),
                     ],
@@ -176,7 +175,7 @@ class PointsPage extends ConsumerWidget {
       backgroundColor: AppTheme.shellBackground,
       floatingActionButton: allowWrite
           ? FloatingActionButton(
-              onPressed: () => _showAddPointsRecordDialog(context, ref, childrenAsync),
+              onPressed: () => _showAddPointsRecordDialog(context, ref, membersAsync),
               backgroundColor: _kGold,
               child: const Icon(Icons.add_rounded, color: Colors.black87),
             )

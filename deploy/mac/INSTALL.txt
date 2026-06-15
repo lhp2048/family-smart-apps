@@ -1,0 +1,39 @@
+家庭智能中心 Web App — Mac 部署说明
+========================================
+
+解压后目录结构:
+  index.html
+  scripts/
+    install_service_mac.sh   安装 / 卸载 / 状态（含登录自启）
+    start_service_mac.sh     运行服务
+    restart_service_mac.sh   重启服务
+    run_web.sh               内部启动脚本
+
+一、安装为系统服务（推荐，登录后自动启动）
+  cd ~/family_smart_center_web
+  chmod +x scripts/*.sh
+  ./scripts/install_service_mac.sh
+
+若出现 env: bash\r 错误（Windows 打包的 CRLF 换行）:
+  sed -i '' $'s/\r$//' scripts/*.sh
+  或重新从 Windows 执行 scripts\build_and_pack_web_win.bat 后替换 zip
+
+二、仅临时运行（不安装自启）
+  ./scripts/start_service_mac.sh
+
+三、重启
+  ./scripts/restart_service_mac.sh
+  ./scripts/restart_service_mac.sh --force
+
+四、卸载自启服务
+  ./scripts/install_service_mac.sh --uninstall
+
+五、查看状态
+  ./scripts/install_service_mac.sh --status
+
+默认端口: 18027
+浏览器: http://127.0.0.1:18027
+
+日志: ~/Library/Logs/familybot-web-app/
+
+接入数据中心时在 App 设置里填写服务器地址即可。

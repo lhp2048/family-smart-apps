@@ -339,9 +339,22 @@ MemberEntity memberFromApiMap(Map<String, dynamic> m) {
       '';
   e.name = m['name']?.toString() ?? m['displayName']?.toString() ?? e.memberCode;
   e.avatar = m['avatar']?.toString();
-  e.role = m['role']?.toString() ?? 'child';
+  e.role = _normalizeMemberRole(e.memberCode, m['role']?.toString() ?? 'child');
   e.status = m['status']?.toString() ?? 'active';
   e.createdAt = _parseUpdatedAt(m['createdAt']) ?? DateTime.now();
   e.updatedAt = _parseUpdatedAt(m['updatedAt']) ?? DateTime.now();
   return e;
+}
+
+/// 历史数据可能把展示名写入 role，统一为 child/parent。
+String _normalizeMemberRole(String memberCode, String rawRole) {
+  final role = rawRole.trim();
+  if (role == 'child' || role == 'parent') return role;
+  final code = memberCode.trim().toLowerCase();
+  if (code == 'mx' || code == 'dad' || code == 'mom' || code == 'parent') {
+    return 'parent';
+  }
+  if (code == 'xixi' || code == 'chuan') return 'child';
+  if (role == '曦曦' || role == '川川') return 'child';
+  return 'child';
 }

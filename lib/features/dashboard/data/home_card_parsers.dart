@@ -30,16 +30,16 @@ List<DashboardHomeworkRow> homeworkRowsFromMembers(
   return out;
 }
 
-/// 积分卡无 `rows` 时的兜底：成员名 + 0 分（与作业卡成员筛选规则一致）。
+/// 积分卡无 `rows` 时的兜底：active 的 child / parent，0 分。
 List<DashboardPointsRow> pointsRowsFromMembers(
   List<Map<String, dynamic>> members,
 ) {
-  final active = members
-      .where((m) => (m['status']?.toString() ?? 'active') != 'inactive')
-      .toList();
-  final children =
-      active.where((m) => m['role']?.toString() == 'child').toList();
-  final source = children.isNotEmpty ? children : active;
+  final source = members.where((m) {
+    final status = (m['status']?.toString() ?? 'active').toLowerCase();
+    if (status != 'active') return false;
+    final role = m['role']?.toString() ?? '';
+    return role == 'child' || role == 'parent';
+  }).toList();
   final out = <DashboardPointsRow>[];
   final seen = <String>{};
   for (final m in source) {

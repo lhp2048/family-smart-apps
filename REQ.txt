@@ -38,7 +38,21 @@ family_smart_center — Flutter 客户端需求说明
 
 五、构建与部署
 --------------------------------------------------------------------------------
-  flutter build web --release          # 或 scripts/build_web_mac.sh
-  scripts/serve_web_mac.sh             # 默认 :18027
+Web App 为纯静态站，可独立运行；未配置服务器时使用 Mock 数据。
+
+Windows 构建并打包（推荐）:
+  scripts\build_and_pack_web_win.bat     # 产出 dist\family_smart_center_web.zip
+
+Mac 部署 zip（含服务脚本，无需 Flutter）:
+  unzip family_smart_center_web.zip -d ~/family_smart_center_web
+  cd ~/family_smart_center_web && chmod +x scripts/*.sh
+  ./scripts/install_service_mac.sh       # 安装 + 登录自启
+  ./scripts/start_service_mac.sh         # 仅运行
+  ./scripts/restart_service_mac.sh       # 重启
+  ./scripts/install_service_mac.sh --uninstall
+
+本机构建:
+  scripts/build_web_mac.sh  或  flutter build web --release
+  scripts/serve_web_mac.sh  # 默认 :18027
 
 契约：项目根 后台API需求说明.md；datacenter REQ.txt。

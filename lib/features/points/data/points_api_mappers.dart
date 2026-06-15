@@ -1,7 +1,13 @@
 import '../../../core/utils/biz_date.dart';
 import '../../../core/utils/week_range.dart';
+import '../../../shared/models/member_entity.dart';
 import '../../dashboard/data/family_api_client.dart';
+import '../../tasks/data/task_api_mappers.dart';
 import 'points_prototype_models.dart';
+
+/// 积分榜参与人：active 的 child 与 parent。
+bool isActivePointsParticipant(MemberEntity m) =>
+    m.status == 'active' && (m.role == 'child' || m.role == 'parent');
 
 /// 单条积分规则 API → UI 行
 PointsRuleLine pointsRuleLineFromApiMap(Map<String, dynamic> m) {
@@ -206,7 +212,7 @@ int _comparePointsRecordsSameDay(Map<String, dynamic> a, Map<String, dynamic> b)
 /// 将周期内流水按业务日分组（日内排序：优先 `createdAt`，否则 `time`）
 List<PointsDayLogGroup> groupPointsRecordsByBizDate(
   List<Map<String, dynamic>> records,
-  Set<String> childMemberCodes,
+  Set<String> participantMemberCodes,
   Map<String, String> displayNameByMemberCode,
 ) {
   final byDate = <String, List<Map<String, dynamic>>>{};
@@ -221,11 +227,11 @@ List<PointsDayLogGroup> groupPointsRecordsByBizDate(
     final dayRows = byDate[bd]!;
     dayRows.sort(_comparePointsRecordsSameDay);
     final dayDelta = <String, int>{
-      for (final c in childMemberCodes) c: 0,
+      for (final c in participantMemberCodes) c: 0,
     };
     for (final r in dayRows) {
       final mc = r['memberCode']?.toString() ?? '';
-      if (!childMemberCodes.contains(mc)) continue;
+      if (!participantMemberCodes.contains(mc)) continue;
       final d = (r['delta'] as num?)?.toInt() ?? 0;
       dayDelta[mc] = (dayDelta[mc] ?? 0) + d;
     }
@@ -246,6 +252,110 @@ List<PointsDayLogGroup> groupPointsRecordsByBizDate(
     );
   }
   return out;
+}
+
+/// 合并重复流水（含同日同人重复的「初始积分」只保留一条）
+List<Map<String, dynamic>> dedupePointsRecords(List<Map<String, dynamic>> records) {
+  final seen = <String>{};
+  final out = <Map<String, dynamic>>[];
+  for (final r in records) {
+    final bd = pointsRecordBizDate(r);
+    final mc = r['memberCode']?.toString() ?? '';
+    final ruleCode = r['ruleCode']?.toString() ?? '';
+    final ruleType = r['ruleType']?.toString() ?? '';
+    final item = r['item']?.toString().trim() ?? '';
+    final isBase = ruleCode == 'base_weekly' ||
+        ruleType == 'base' ||
+        item == '初始积分';
+    final String key;
+    if (isBase) {
+      key = '$bd|$mc|base';
+    } else {
+      final delta = (r['delta'] as num?)?.toInt() ?? 0;
+      final head = item.split('——').first.trim();
+      key = '$bd|$mc|$delta|$head';
+    }
+    if (seen.add(key)) out.add(r);
+  }
+  return out;
+}
+
+/// 由周期内积分明细按 [memberCode] 汇总（与「积分明细」展示同源，保证汇总=明细聚合）。
+({
+  Map<String, int> totalsByMemberCode,
+  Map<String, int> netGainByMemberCode,
+  Map<String, String> displayNameByMemberCode,
+}) computePointsSummaryFromRecords(
+  List<Map<String, dynamic>> records,
+  Set<String> memberCodes,
+  Map<String, String> seedDisplayNames,
+) {
+  final totals = <String, int>{
+    for (final code in memberCodes) code: 0,
+  };
+  final nets = <String, int>{
+    for (final code in memberCodes) code: 0,
+  };
+  final names = Map<String, String>.from(seedDisplayNames);
+
+  bool isBaseRecord(Map<String, dynamic> r) {
+    final ruleCode = r['ruleCode']?.toString() ?? '';
+    final ruleType = r['ruleType']?.toString() ?? '';
+    final item = r['item']?.toString() ?? '';
+    return ruleCode == 'base_weekly' ||
+        ruleType == 'base' ||
+        item == '初始积分';
+  }
+
+  for (final r in records) {
+    final mc = r['memberCode']?.toString() ?? '';
+    if (mc.isEmpty) continue;
+    if (memberCodes.isNotEmpty && !memberCodes.contains(mc)) continue;
+
+    totals.putIfAbsent(mc, () => 0);
+    nets.putIfAbsent(mc, () => 0);
+
+    final delta = (r['delta'] as num?)?.toInt() ?? 0;
+    totals[mc] = (totals[mc] ?? 0) + delta;
+    if (!isBaseRecord(r)) {
+      nets[mc] = (nets[mc] ?? 0) + delta;
+    }
+
+    final dn = r['displayName']?.toString().trim();
+    final person = r['person']?.toString().trim();
+    if (dn != null && dn.isNotEmpty) {
+      names[mc] = dn;
+    } else if (person != null && person.isNotEmpty) {
+      names.putIfAbsent(mc, () => person);
+    }
+  }
+
+  return (
+    totalsByMemberCode: totals,
+    netGainByMemberCode: nets,
+    displayNameByMemberCode: names,
+  );
+}
+
+/// 积分榜参与成员 code + 展示名（active 的 child / parent）
+Future<({Set<String> codes, Map<String, String> displayNames})>
+    fetchPointsMemberCodes(FamilyApiClient client) async {
+  final codes = <String>{};
+  final names = <String, String>{};
+  try {
+    final rawMembers = await client.fetchMembers();
+    for (final m in rawMembers) {
+      final entity = memberFromApiMap(m);
+      if (!isActivePointsParticipant(entity)) continue;
+      final code = entity.memberCode;
+      if (code.isEmpty) continue;
+      codes.add(code);
+      if (entity.name.isNotEmpty) {
+        names[code] = entity.name;
+      }
+    }
+  } catch (_) {}
+  return (codes: codes, displayNames: names);
 }
 
 /// 由 summary.list 构建总分、净增（相对 baseScore）
@@ -377,35 +487,33 @@ Future<List<PointsWeekCycle>> fetchPointsWeekCyclesRemote(
   final weeksData = await client.fetchPointsWeeks();
   final rawWeeks = pointsWeeksListFromData(weeksData);
   final merged = mergePointsWeeksFromApi(rawWeeks, current);
+  final childSeed = await fetchPointsMemberCodes(client);
   final cycles = <PointsWeekCycle>[];
   for (final meta in merged) {
-    final summaryData = await client.fetchPointsSummary(
-      periodStart: meta.periodStart,
-      periodEnd: meta.periodEnd,
-    );
-    final summaryList = pointsSummaryListFromData(summaryData);
-    final parsed = parsePointsSummaryMembers(summaryList);
-    var childCodes = parsed.totalsByMemberCode.keys.toSet();
-    if (childCodes.isEmpty) {
-      childCodes = parsed.displayNameByMemberCode.keys.toSet();
-    }
+    var participantCodes = Set<String>.from(childSeed.codes);
+    final displayNames = Map<String, String>.from(childSeed.displayNames);
+
     var allRecords = await fetchPointsRecordsForPeriod(
       client,
       meta.periodStart,
       meta.periodEnd,
-      childCodes,
+      participantCodes,
     );
-    if (childCodes.isEmpty && allRecords.isNotEmpty) {
-      childCodes = allRecords
-          .map((r) => r['memberCode']?.toString() ?? '')
-          .where((s) => s.isNotEmpty)
-          .toSet();
+    allRecords = dedupePointsRecords(allRecords);
+    for (final r in allRecords) {
+      final mc = r['memberCode']?.toString() ?? '';
+      if (mc.isNotEmpty) participantCodes.add(mc);
     }
-    final displayNames = Map<String, String>.from(parsed.displayNameByMemberCode);
+
+    final computed = computePointsSummaryFromRecords(
+      allRecords,
+      participantCodes,
+      displayNames,
+    );
     final daily = groupPointsRecordsByBizDate(
       allRecords,
-      childCodes,
-      displayNames,
+      participantCodes,
+      computed.displayNameByMemberCode,
     );
     final isCur = meta.periodStart == current.periodStart &&
         meta.periodEnd == current.periodEnd;
@@ -422,10 +530,10 @@ Future<List<PointsWeekCycle>> fetchPointsWeekCyclesRemote(
           meta.periodEnd,
         ),
         isCurrentWeek: isCur,
-        totalsByMemberCode: parsed.totalsByMemberCode,
-        netGainByMemberCode: parsed.netGainByMemberCode,
+        totalsByMemberCode: computed.totalsByMemberCode,
+        netGainByMemberCode: computed.netGainByMemberCode,
         dailyLogs: daily,
-        displayNameByMemberCode: displayNames,
+        displayNameByMemberCode: computed.displayNameByMemberCode,
       ),
     );
   }
