@@ -9,6 +9,7 @@ import '../data/dashboard_prototype_models.dart';
 import '../data/family_api_client.dart';
 import '../data/home_card_parsers.dart';
 import 'family_api_access_token_provider.dart';
+import 'family_api_sync_key_provider.dart';
 import 'family_api_base_url_provider.dart';
 
 final familyApiDioProvider = Provider<Dio>((ref) {
@@ -24,7 +25,12 @@ final familyApiDioProvider = Provider<Dio>((ref) {
 });
 
 final familyApiClientProvider = Provider<FamilyApiClient>((ref) {
-  return FamilyApiClient(ref.watch(familyApiDioProvider));
+  final syncKey =
+      ref.watch(familyApiSyncKeyNotifierProvider).valueOrNull ?? '';
+  return FamilyApiClient(
+    ref.watch(familyApiDioProvider),
+    syncApiKey: syncKey.isEmpty ? null : syncKey,
+  );
 });
 
 /// 首页作业卡使用的业务日（当天本地日历）。

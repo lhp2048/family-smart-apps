@@ -4,9 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
+import '../../../core/constants/app_product_flags.dart';
+import '../../../core/utils/biz_date.dart';
+import '../../../features/dashboard/data/family_api_client.dart';
 import '../../../features/dashboard/providers/family_api_base_url_provider.dart';
 import '../../../shared/providers/timemachine_ui_providers.dart';
 import '../data/timemachine_prototype_models.dart';
+import '../data/timemachine_remote_write.dart';
 
 const Color _kTmCard = Color(0xFF1E1E1E);
 const Color _kTmGold = Color(0xFFD4AF37);
@@ -117,8 +121,18 @@ class TimemachinePage extends ConsumerWidget {
       ref.read(timemachineSelectedBizDateProvider.notifier).state = bd;
     }
 
+    final apiOn = ref.watch(familyApiIsConfiguredProvider);
+    final allowWrite = apiOn && !kEffectiveReadOnlyDataMode;
+
     return Scaffold(
       backgroundColor: AppTheme.shellBackground,
+      floatingActionButton: allowWrite
+          ? FloatingActionButton(
+              onPressed: () => _showAddTimelineEntryDialog(context, ref),
+              backgroundColor: _kTmGold,
+              child: const Icon(Icons.add_rounded, color: Colors.black87),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -722,4 +736,58 @@ class _EntryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _showAddTimelineEntryDialog(BuildContext context, WidgetRef ref) async {
+  final titleCtrl = TextEditingController();
+  final contentCtrl = TextEditingController();
+  final bizDate = formatBizDate(DateTime.now());
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('新增时光机记录'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('业务日：$bizDate', style: const TextStyle(fontSize: 13)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: titleCtrl,
+            decoration: const InputDecoration(labelText: '标题'),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: contentCtrl,
+            maxLines: 4,
+            decoration: const InputDecoration(labelText: '内容'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+        TextButton(
+          onPressed: () async {
+            try {
+              await syncTimelineEntryRemote(
+                ref,
+                bizDate: bizDate,
+                title: titleCtrl.text,
+                content: contentCtrl.text,
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+            } on FamilyApiException catch (e) {
+              if (ctx.mounted) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(content: Text(e.message)),
+                );
+              }
+            }
+          },
+          child: const Text('保存'),
+        ),
+      ],
+    ),
+  );
+  titleCtrl.dispose();
+  contentCtrl.dispose();
 }

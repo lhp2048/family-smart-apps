@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/app.dart' show rootScaffoldMessengerKey;
+import '../../../core/constants/app_product_flags.dart';
 import '../../../core/mock/mock_data_notifier.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
+import '../../../features/dashboard/data/family_api_client.dart';
 import '../../../features/dashboard/providers/family_api_base_url_provider.dart';
+import '../data/syllable_remote_write.dart';
 import '../../../shared/providers/syllable_remote_providers.dart';
 import '../data/syllable_generated_sheet_record.dart';
 import '../data/syllable_sheet_api_mapper.dart';
@@ -232,6 +235,47 @@ class _SyllablePracticePageState extends ConsumerState<SyllablePracticePage> {
     _openPreviewWithWords(context, '$title 练习卷', paperWords);
   }
 
+  Future<void> _syncSheetToDatacenter(SyllableLatestSheet sheet) async {
+    setState(() => _generating = true);
+    try {
+      await syncSyllableSheetRemote(ref, sheet);
+      if (!mounted) return;
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(content: Text('练习词表已同步到数据中心')),
+      );
+    } on FamilyApiException catch (e) {
+      if (!mounted) return;
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
+        SnackBar(content: Text('同步失败：$e')),
+      );
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
+  }
+
+  Future<void> _generateDemoAndSync() async {
+    setState(() => _generating = true);
+    try {
+      await syncSyllableSheetRemote(ref, demoSyllableSheetForSync());
+      if (!mounted) return;
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(content: Text('已生成并同步演示词表')),
+      );
+    } on FamilyApiException catch (e) {
+      if (!mounted) return;
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
+  }
+
   Future<void> _generateToday() async {
     final notifier = ref.read(mockDataNotifierProvider.notifier);
     if (notifier.hasSyllableSheetForDate(DateTime.now())) {
@@ -416,12 +460,39 @@ class _SyllablePracticePageState extends ConsumerState<SyllablePracticePage> {
                 onBack: () => context.pop(),
                 icon: Icons.splitscreen_rounded,
                 title: '英语音节分割练习',
-                trailing: IconButton(
-                  tooltip: '重新拉取',
-                  onPressed: () =>
-                      ref.invalidate(syllableLatestSheetAsyncProvider),
-                  icon: const Icon(Icons.refresh_rounded),
-                  color: Colors.white70,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!kEffectiveReadOnlyDataMode)
+                      IconButton(
+                        tooltip: '同步词表到数据中心',
+                        onPressed: _generating
+                            ? null
+                            : () {
+                                final sheet = ref.read(
+                                      syllableLatestSheetMemoryCacheProvider,
+                                    ) ??
+                                    ref
+                                        .read(syllableLatestSheetAsyncProvider)
+                                        .valueOrNull;
+                                if (sheet != null &&
+                                    syllableFilledWordCount(sheet.words) > 0) {
+                                  _syncSheetToDatacenter(sheet);
+                                } else {
+                                  _generateDemoAndSync();
+                                }
+                              },
+                        icon: const Icon(Icons.cloud_upload_outlined),
+                        color: Colors.white70,
+                      ),
+                    IconButton(
+                      tooltip: '重新拉取',
+                      onPressed: () =>
+                          ref.invalidate(syllableLatestSheetAsyncProvider),
+                      icon: const Icon(Icons.refresh_rounded),
+                      color: Colors.white70,
+                    ),
+                  ],
                 ),
               ),
               Expanded(

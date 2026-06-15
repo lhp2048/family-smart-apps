@@ -4,6 +4,7 @@ import '../../../shared/providers/debate_ui_providers.dart';
 import '../../../shared/providers/extracurricular_ui_providers.dart';
 import '../../../shared/providers/points_ui_providers.dart';
 import '../../../shared/providers/syllable_remote_providers.dart';
+import '../../../shared/providers/home_ui_providers.dart';
 import '../../../shared/providers/task_ui_providers.dart';
 import '../../../shared/providers/timemachine_ui_providers.dart';
 import '../../../shared/providers/wishwall_ui_providers.dart';
@@ -36,6 +37,7 @@ void invalidateFamilyApiCaches(WidgetRef ref) {
   ref.invalidate(extracurricularRemoteItemsAsyncProvider);
 
   ref.invalidate(syllableLatestSheetAsyncProvider);
+  ref.invalidate(featureEntriesAsyncProvider);
 
   ref.read(taskRemoteRefreshProvider.notifier).state++;
 

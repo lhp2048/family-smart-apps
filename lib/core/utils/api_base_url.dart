@@ -1,6 +1,6 @@
 /// 规范化用户输入的站点根：仅保留 `scheme://host:port`，不含路径。
 ///
-/// 示例：`http://192.168.2.11:18024`、自动补 `http://`。
+/// 示例：`http://192.168.2.11:18025`、自动补 `http://`。
 String normalizeFamilyApiOrigin(String input) {
   var s = input.trim();
   if (s.isEmpty) {

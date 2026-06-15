@@ -1,0 +1,44 @@
+family_smart_center — Flutter 客户端需求说明
+================================================================================
+
+一、定位
+--------------------------------------------------------------------------------
+家庭智能中心多端客户端；在线数据以 family_smart_datacenter（:18025）为唯一数据源。
+
+  · 设置中配置站点根 + API KEY（可空）即可接入。
+  · Web 静态站默认 :18027（python3 http.server 或 scripts/serve_web_mac.sh）。
+  · AI 智能服务（:18024）本 App 不直接调用。
+
+
+二、读 API（已对接 GET /api/v1/*）
+--------------------------------------------------------------------------------
+成员、首页卡片、作业、积分、心愿、时光机、辩论、课外、音标、feature-entries 等。
+未配置服务器时使用 Mock 原型数据。
+
+
+三、写 API（移动端；Web 自动只读）
+--------------------------------------------------------------------------------
+| 模块 | 接口 |
+|------|------|
+| 作业 | POST sync/homework |
+| 心愿 | POST wishes/{id}/toggle、DELETE、POST sync/wish |
+| 音标 | POST sync/syllable-sheet |
+| 课外 | POST sync/media-item（已看切换） |
+| 时光机 | POST sync/timeline-entry |
+| 积分 | POST sync/points-records |
+
+写操作请求头：X-Sync-Key（设置中可单独配置）或 X-API-Key。
+
+
+四、平台差异
+--------------------------------------------------------------------------------
+· Web（kIsWeb）：只读展示，无作业勾选、无心愿/积分等写 UI。
+· Android/iOS/macOS：可写（kAppReadOnlyDataMode=false 时）。
+
+
+五、构建与部署
+--------------------------------------------------------------------------------
+  flutter build web --release          # 或 scripts/build_web_mac.sh
+  scripts/serve_web_mac.sh             # 默认 :18027
+
+契约：项目根 后台API需求说明.md；datacenter REQ.txt。

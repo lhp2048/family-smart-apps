@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_product_flags.dart';
 import '../../../core/mock/mock_data_notifier.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
+import '../../../features/dashboard/data/family_api_client.dart';
+import '../../../features/dashboard/providers/dashboard_remote_providers.dart';
 import '../../../features/dashboard/providers/family_api_base_url_provider.dart';
+import '../../../features/dashboard/providers/family_api_write_refresh.dart';
+import '../../../shared/models/member_entity.dart';
 import '../../../shared/providers/task_ui_providers.dart';
 import '../../../shared/providers/wishwall_ui_providers.dart';
 import '../data/wishwall_prototype_models.dart';
+import '../data/wishwall_remote_write.dart';
 
 const Color _kCardBg = Color(0xFF1E222D);
 const Color _kChipSelected = Color(0xFF7C4DFF);
@@ -59,6 +65,8 @@ class WishwallPage extends ConsumerWidget {
     final wishesAsync = ref.watch(wishwallItemsAsyncProvider);
     final filtered = ref.watch(filteredWishwallItemsProvider);
     final chips = _buildChips(ref);
+    final apiConfigured = ref.watch(familyApiIsConfiguredProvider);
+    final allowWrite = apiConfigured && !kEffectiveReadOnlyDataMode;
 
     ref.listen(homeworkChildrenAsyncProvider, (prev, next) {
       next.whenData((children) {
@@ -92,6 +100,13 @@ class WishwallPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppTheme.shellBackground,
+      floatingActionButton: allowWrite
+          ? FloatingActionButton(
+              onPressed: () => _showAddWishDialog(context, ref),
+              backgroundColor: _kChipSelected,
+              child: const Icon(Icons.add_rounded),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -192,6 +207,13 @@ class WishwallPage extends ConsumerWidget {
                   return _WishwallCardList(
                     items: filtered,
                     nameForCode: nameForCode,
+                    allowToggle: allowWrite,
+                    onToggleWish: allowWrite
+                        ? (item) => _toggleWishRemote(ref, context, item)
+                        : null,
+                    onDeleteWish: allowWrite
+                        ? (item) => _deleteWishRemote(ref, context, item)
+                        : null,
                   );
                 },
               ),
@@ -201,6 +223,126 @@ class WishwallPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<void> _toggleWishRemote(
+  WidgetRef ref,
+  BuildContext context,
+  WishwallItem item,
+) async {
+  final wishId = int.tryParse(item.id);
+  if (wishId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('心愿 ID 无效，无法切换状态')),
+    );
+    return;
+  }
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    final client = ref.read(familyApiClientProvider);
+    await client.toggleWish(wishId);
+    refreshAfterFamilyApiWrite(ref);
+  } on FamilyApiException catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(e.message)));
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('切换失败：$e')));
+  }
+}
+
+Future<void> _deleteWishRemote(
+  WidgetRef ref,
+  BuildContext context,
+  WishwallItem item,
+) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('删除心愿'),
+      content: const Text('确定删除这条心愿吗？'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('删除')),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await deleteWishRemote(ref, item);
+  } on FamilyApiException catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(e.message)));
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('删除失败：$e')));
+  }
+}
+
+Future<void> _showAddWishDialog(BuildContext context, WidgetRef ref) async {
+  final children =
+      ref.read(homeworkChildrenAsyncProvider).valueOrNull ?? const <MemberEntity>[];
+  if (children.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('暂无孩子成员，无法许愿')),
+    );
+    return;
+  }
+  final contentCtrl = TextEditingController();
+  var memberCode = children.first.memberCode;
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setLocal) => AlertDialog(
+        title: const Text('许下心愿'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: contentCtrl,
+              autofocus: true,
+              maxLines: 3,
+              decoration: const InputDecoration(hintText: '写下你的心愿…'),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: memberCode,
+              decoration: const InputDecoration(labelText: '成员'),
+              items: [
+                for (final c in children)
+                  DropdownMenuItem(value: c.memberCode, child: Text(c.name)),
+              ],
+              onChanged: (v) {
+                if (v != null) setLocal(() => memberCode = v);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          TextButton(
+            onPressed: () async {
+              final member = children.firstWhere((c) => c.memberCode == memberCode);
+              try {
+                await syncWishRemote(
+                  ref,
+                  content: contentCtrl.text,
+                  memberCode: member.memberCode,
+                  displayName: member.name,
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+              } on FamilyApiException catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text(e.message)),
+                  );
+                }
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    ),
+  );
+  contentCtrl.dispose();
 }
 
 class _ChipDef {
@@ -222,10 +364,19 @@ const TextStyle _kWishContentStyle = TextStyle(
 const int _kWishCollapsedMaxLines = 5;
 
 class _WishwallCardList extends StatelessWidget {
-  const _WishwallCardList({required this.items, required this.nameForCode});
+  const _WishwallCardList({
+    required this.items,
+    required this.nameForCode,
+    this.allowToggle = false,
+    this.onToggleWish,
+    this.onDeleteWish,
+  });
 
   final List<WishwallItem> items;
   final String Function(String code) nameForCode;
+  final bool allowToggle;
+  final Future<void> Function(WishwallItem item)? onToggleWish;
+  final Future<void> Function(WishwallItem item)? onDeleteWish;
 
   @override
   Widget build(BuildContext context) {
@@ -245,6 +396,11 @@ class _WishwallCardList extends StatelessWidget {
             item: it,
             ownerName: owner,
             minContentWidth: cardInnerW - 32,
+            allowToggle: allowToggle,
+            onToggleFulfillment: onToggleWish == null
+                ? null
+                : () => onToggleWish!(it),
+            onDelete: onDeleteWish == null ? null : () => onDeleteWish!(it),
           );
         }
 
@@ -291,6 +447,9 @@ class _WishCard extends StatefulWidget {
     required this.item,
     required this.ownerName,
     required this.minContentWidth,
+    this.allowToggle = false,
+    this.onToggleFulfillment,
+    this.onDelete,
   });
 
   final WishwallItem item;
@@ -298,6 +457,9 @@ class _WishCard extends StatefulWidget {
 
   /// 用于判断正文是否超过折叠行数（与卡片内容区宽度一致）
   final double minContentWidth;
+  final bool allowToggle;
+  final Future<void> Function()? onToggleFulfillment;
+  final Future<void> Function()? onDelete;
 
   @override
   State<_WishCard> createState() => _WishCardState();
@@ -341,6 +503,7 @@ class _WishCardState extends State<_WishCard> {
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
+            onLongPress: widget.onDelete,
             borderRadius: BorderRadius.circular(18),
             child: Stack(
               clipBehavior: Clip.hardEdge,
@@ -419,12 +582,58 @@ class _WishCardState extends State<_WishCard> {
                     ],
                   ),
                 ),
-                Positioned(top: 0, right: 0, child: _CornerLeafTag()),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: widget.allowToggle && widget.onToggleFulfillment != null
+                      ? _WishFulfillmentToggle(
+                          fulfilled: widget.item.fulfilled,
+                          onTap: widget.onToggleFulfillment!,
+                        )
+                      : _CornerLeafTag(),
+                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _WishFulfillmentToggle extends StatelessWidget {
+  const _WishFulfillmentToggle({
+    required this.fulfilled,
+    required this.onTap,
+  });
+
+  final bool fulfilled;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: fulfilled
+          ? const Color(0xFF43A047)
+          : _kAccentBlue.withValues(alpha: 0.92),
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(20),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+        ),
+        child: SizedBox(
+          width: 48,
+          height: 36,
+          child: Icon(
+            fulfilled ? Icons.check_rounded : Icons.radio_button_unchecked,
+            color: Colors.white,
+            size: 22,
+          ),
+        ),
+      ),
     );
   }
 }

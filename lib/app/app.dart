@@ -50,7 +50,7 @@ class FamilySmartApp extends ConsumerWidget {
                       vertical: 8,
                     ),
                     child: Text(
-                      '【测试】未连接服务器，以下为本地原型数据',
+                      '未连接数据中心，以下为本地演示数据。请在设置中填写 http://<host>:18025',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.amber.shade200,
@@ -65,7 +65,7 @@ class FamilySmartApp extends ConsumerWidget {
                   clipBehavior: Clip.none,
                   children: [
                     child ?? const SizedBox.shrink(),
-                    if (!kAppReadOnlyDataMode) const GlobalMicOverlay(),
+                    if (!kEffectiveReadOnlyDataMode) const GlobalMicOverlay(),
                   ],
                 ),
               ),

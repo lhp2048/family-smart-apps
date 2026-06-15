@@ -4,10 +4,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
+import '../../../core/constants/app_product_flags.dart';
+import '../../../core/utils/biz_date.dart';
+import '../../../features/dashboard/data/family_api_client.dart';
+import '../../../features/dashboard/providers/family_api_base_url_provider.dart';
 import '../../../shared/models/member_entity.dart';
 import '../../../shared/providers/points_ui_providers.dart';
 import '../../../shared/providers/task_ui_providers.dart';
 import '../data/points_prototype_models.dart';
+import '../data/points_remote_write.dart';
 
 const Color _kGold = Color(0xFFE6C358);
 const Color _kGreenPoints = Color(0xFF69F0AE);
@@ -164,8 +169,18 @@ class PointsPage extends ConsumerWidget {
       );
     }
 
+    final apiOn = ref.watch(familyApiIsConfiguredProvider);
+    final allowWrite = apiOn && !kEffectiveReadOnlyDataMode;
+
     return Scaffold(
       backgroundColor: AppTheme.shellBackground,
+      floatingActionButton: allowWrite
+          ? FloatingActionButton(
+              onPressed: () => _showAddPointsRecordDialog(context, ref, childrenAsync),
+              backgroundColor: _kGold,
+              child: const Icon(Icons.add_rounded, color: Colors.black87),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -983,4 +998,89 @@ class _LogTableRow extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _showAddPointsRecordDialog(
+  BuildContext context,
+  WidgetRef ref,
+  AsyncValue<List<MemberEntity>> childrenAsync,
+) async {
+  final children = childrenAsync.valueOrNull ?? const <MemberEntity>[];
+  if (children.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('暂无成员，无法记账')),
+    );
+    return;
+  }
+  final descCtrl = TextEditingController();
+  final deltaCtrl = TextEditingController(text: '5');
+  var memberCode = children.first.memberCode;
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setLocal) => AlertDialog(
+        title: const Text('记一笔积分'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              value: memberCode,
+              decoration: const InputDecoration(labelText: '成员'),
+              items: [
+                for (final c in children)
+                  DropdownMenuItem(value: c.memberCode, child: Text(c.name)),
+              ],
+              onChanged: (v) {
+                if (v != null) setLocal(() => memberCode = v);
+              },
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: descCtrl,
+              decoration: const InputDecoration(labelText: '说明'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: deltaCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: '分值（可负数）',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          TextButton(
+            onPressed: () async {
+              final member = children.firstWhere((c) => c.memberCode == memberCode);
+              final delta = int.tryParse(deltaCtrl.text.trim()) ?? 0;
+              try {
+                await syncPointsRecordRemote(
+                  ref,
+                  bizDate: formatBizDate(DateTime.now()),
+                  memberCode: member.memberCode,
+                  displayName: member.name,
+                  description: descCtrl.text.trim().isEmpty
+                      ? '手动记账'
+                      : descCtrl.text.trim(),
+                  delta: delta,
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+              } on FamilyApiException catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text(e.message)),
+                  );
+                }
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    ),
+  );
+  descCtrl.dispose();
+  deltaCtrl.dispose();
 }

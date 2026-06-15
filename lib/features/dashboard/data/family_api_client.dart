@@ -12,11 +12,25 @@ class FamilyApiException implements Exception {
   String toString() => message;
 }
 
-/// P0 只读：首页卡片等（`后台API需求说明.md`）。
+/// P0 只读 + 写：对接 family_smart_datacenter `/api/v1/*`。
 class FamilyApiClient {
-  FamilyApiClient(this._dio);
+  FamilyApiClient(this._dio, {String? syncApiKey})
+      : _syncApiKey = syncApiKey == null || syncApiKey.isEmpty
+            ? ''
+            : normalizeBearerSecret(syncApiKey);
 
   final Dio _dio;
+  final String _syncApiKey;
+
+  static const String kDefaultWriteSource = 'family_smart_center_app';
+
+  Options _writeOptions() {
+    if (_syncApiKey.isEmpty) return Options();
+    return Options(
+      headers: <String, dynamic>{'X-Sync-Key': _syncApiKey},
+      preserveHeaderCase: true,
+    );
+  }
 
   /// [accessToken] 来自设置中的「访问API KEY」，写入请求头 `X-API-Key`。
   static Dio createDio({String? baseUrl, String? accessToken}) {
@@ -95,7 +109,7 @@ class FamilyApiClient {
     final code = e.response?.statusCode;
     switch (code) {
       case 404:
-        return '未找到接口(404)。请确认端口正确（如 :18024），且服务提供 GET /api/v1/members';
+        return '未找到接口(404)。请确认端口正确（如 :18025），且服务提供 GET /api/v1/members';
       case 401:
       case 403:
         return '无权限访问($code)，请检查设置中的访问API KEY（X-API-Key）是否正确';
@@ -437,6 +451,12 @@ class FamilyApiClient {
     return _unwrapData(res.data);
   }
 
+  /// `GET /v1/feature-entries`
+  Future<Map<String, dynamic>> fetchFeatureEntries() async {
+    final res = await _dio.get<Map<String, dynamic>>('feature-entries');
+    return _unwrapData(res.data);
+  }
+
   /// `GET /v1/task-items?bizDate=&groupCode=`
   Future<List<Map<String, dynamic>>> fetchTaskItems(
     String bizDate, {
@@ -456,5 +476,123 @@ class FamilyApiClient {
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
+  }
+
+  /// `POST /v1/sync/homework` — 同步某成员某日作业（全量覆盖该成员当日 items）。
+  Future<Map<String, dynamic>> syncHomework({
+    required String bizDate,
+    required String memberCode,
+    required String displayName,
+    required List<Map<String, dynamic>> items,
+    String source = kDefaultWriteSource,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      'sync/homework',
+      data: {
+        'bizDate': bizDate,
+        'memberCode': memberCode,
+        'displayName': displayName,
+        'items': items,
+        'source': source,
+      },
+      options: _writeOptions(),
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `POST /v1/wishes/{id}/toggle` — 切换心愿完成状态。
+  Future<Map<String, dynamic>> toggleWish(int wishId) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      'wishes/$wishId/toggle',
+      options: _writeOptions(),
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `DELETE /v1/wishes/{id}` — 删除心愿。
+  Future<Map<String, dynamic>> deleteWish(int wishId) async {
+    final res = await _dio.delete<Map<String, dynamic>>(
+      'wishes/$wishId',
+      options: _writeOptions(),
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `POST /v1/sync/wish` — 新建或更新心愿。
+  Future<Map<String, dynamic>> syncWish(
+    Map<String, dynamic> wish, {
+    String source = kDefaultWriteSource,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      'sync/wish',
+      data: {'wish': wish, 'source': source},
+      options: _writeOptions(),
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `POST /v1/sync/points-records` — 同步积分流水。
+  Future<Map<String, dynamic>> syncPointsRecords(
+    List<Map<String, dynamic>> records, {
+    String source = kDefaultWriteSource,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      'sync/points-records',
+      data: {'records': records, 'source': source},
+      options: _writeOptions(),
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `POST /v1/sync/timeline-entry` — 同步时光机条目。
+  Future<Map<String, dynamic>> syncTimelineEntry(
+    Map<String, dynamic> entry, {
+    String source = kDefaultWriteSource,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      'sync/timeline-entry',
+      data: {'entry': entry, 'source': source},
+      options: _writeOptions(),
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `POST /v1/sync/media-item` — 同步课外媒体项。
+  Future<Map<String, dynamic>> syncMediaItem(
+    Map<String, dynamic> item, {
+    String source = kDefaultWriteSource,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      'sync/media-item',
+      data: {'item': item, 'source': source},
+      options: _writeOptions(),
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `POST /v1/sync/syllable-sheet` — 同步音标练习纸。
+  Future<Map<String, dynamic>> syncSyllableSheet(
+    Map<String, dynamic> sheet, {
+    String source = kDefaultWriteSource,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      'sync/syllable-sheet',
+      data: {'sheet': sheet, 'source': source},
+      options: _writeOptions(),
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `POST /v1/sync/members` — 同步成员列表。
+  Future<Map<String, dynamic>> syncMembers(
+    List<Map<String, dynamic>> members, {
+    String source = kDefaultWriteSource,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      'sync/members',
+      data: {'members': members, 'source': source},
+      options: _writeOptions(),
+    );
+    return _unwrapData(res.data);
   }
 }

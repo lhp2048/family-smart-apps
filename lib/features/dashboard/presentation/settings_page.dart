@@ -16,6 +16,7 @@ import '../providers/dashboard_home_title_provider.dart';
 import '../providers/family_api_access_token_provider.dart';
 import '../providers/family_api_cache_invalidation.dart';
 import '../providers/family_api_base_url_provider.dart';
+import '../providers/family_api_sync_key_provider.dart';
 import 'server_origin_qr_scan_page.dart';
 
 String _memberRoleLabel(String role) {
@@ -48,17 +49,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   bool _editingServer = false;
   /// 仅改 API KEY：不展开服务器地址输入，也不触发 GET /members 校验。
   bool _editingTokenOnly = false;
+  /// 仅改 Sync KEY：不校验服务器。
+  bool _editingSyncKeyOnly = false;
   bool _validating = false;
   bool _tokenObscured = true;
+  bool _syncKeyObscured = true;
   late final TextEditingController _homeTitleCtrl = TextEditingController();
   late final TextEditingController _serverCtrl = TextEditingController();
   late final TextEditingController _tokenCtrl = TextEditingController();
+  late final TextEditingController _syncKeyCtrl = TextEditingController();
 
   @override
   void dispose() {
     _homeTitleCtrl.dispose();
     _serverCtrl.dispose();
     _tokenCtrl.dispose();
+    _syncKeyCtrl.dispose();
     super.dispose();
   }
 
@@ -121,39 +127,62 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Future<void> _saveTokenOnly() async {
-    final key = normalizeBearerSecret(_tokenCtrl.text);
-    if (key.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('请填写访问API KEY')));
-      return;
-    }
     await ref
         .read(familyApiAccessTokenNotifierProvider.notifier)
         .persistToken(_tokenCtrl.text);
     invalidateFamilyApiCaches(ref);
     if (!mounted) return;
     setState(() => _editingTokenOnly = false);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('访问API KEY 已保存')));
+    final key = normalizeBearerSecret(_tokenCtrl.text);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          key.isEmpty ? '已清除访问API KEY' : '访问API KEY 已保存',
+        ),
+      ),
+    );
   }
 
-  /// 进入 [FamilyApiClient.validateServerBaseUrl] 前须已填写服务器地址与非空访问 API KEY。
-  bool _ensureServerAndApiKeyForValidation() {
+  Future<void> _saveSyncKeyOnly() async {
+    await ref
+        .read(familyApiSyncKeyNotifierProvider.notifier)
+        .persistSyncKey(_syncKeyCtrl.text);
+    invalidateFamilyApiCaches(ref);
+    if (!mounted) return;
+    setState(() => _editingSyncKeyOnly = false);
+    final key = normalizeBearerSecret(_syncKeyCtrl.text);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(key.isEmpty ? '已清除 Sync API KEY' : 'Sync API KEY 已保存'),
+      ),
+    );
+  }
+
+  void _startEditSyncKeyOnly(String current) {
+    setState(() {
+      _editingSyncKeyOnly = true;
+      _editingServer = false;
+      _editingTokenOnly = false;
+      _syncKeyObscured = true;
+      _syncKeyCtrl.text = current;
+    });
+  }
+
+  void _cancelSyncKeyOnly() {
+    final t = ref.read(familyApiSyncKeyNotifierProvider).valueOrNull ?? '';
+    setState(() {
+      _editingSyncKeyOnly = false;
+      _syncKeyCtrl.text = t;
+    });
+  }
+
+  /// 进入 [FamilyApiClient.validateServerBaseUrl] 前须已填写服务器地址；API KEY 可留空（无鉴权环境）。
+  bool _ensureServerForValidation() {
     if (!mounted) return false;
     final trimmed = _serverCtrl.text.trim();
     if (trimmed.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('请填写有效的服务器地址')),
-      );
-      return false;
-    }
-    final apiKey = normalizeBearerSecret(_tokenCtrl.text);
-    if (apiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请填写访问API KEY')),
       );
       return false;
     }
@@ -183,7 +212,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Future<void> _confirmServerUrl() async {
     if (_validating) return;
-    if (!_ensureServerAndApiKeyForValidation()) return;
+    if (!_ensureServerForValidation()) return;
     final trimmed = _serverCtrl.text.trim();
     final token = normalizeBearerSecret(_tokenCtrl.text);
     setState(() => _validating = true);
@@ -231,6 +260,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         homeTitleAsync.valueOrNull ?? DashboardHomeTitleNotifier.kDefaultTitle;
     final tokenAsync = ref.watch(familyApiAccessTokenNotifierProvider);
     final displayToken = tokenAsync.valueOrNull ?? '';
+    final syncKeyAsync = ref.watch(familyApiSyncKeyNotifierProvider);
+    final displaySyncKey = syncKeyAsync.valueOrNull ?? '';
 
     return Scaffold(
       backgroundColor: AppTheme.shellBackground,
@@ -374,7 +405,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                   ),
                                 ),
                               ),
-                              if (!_editingServer && !_editingTokenOnly)
+                              if (!_editingServer && !_editingTokenOnly && !_editingSyncKeyOnly) ...[
                                 TextButton(
                                   onPressed: baseAsync.isLoading
                                       ? null
@@ -397,6 +428,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                     ),
                                   ),
                                 ),
+                                TextButton(
+                                  onPressed: baseAsync.isLoading
+                                      ? null
+                                      : () => _startEditSyncKeyOnly(
+                                            displaySyncKey,
+                                          ),
+                                  style: TextButton.styleFrom(
+                                    minimumSize: Size.zero,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'SYNC KEY',
+                                    style: TextStyle(
+                                      color: muted,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -414,7 +469,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                         decoration: InputDecoration(
                                           isDense: true,
                                           hintText:
-                                              'http://192.168.2.11:18024',
+                                              'http://192.168.2.11:18025',
                                           hintStyle: TextStyle(
                                             color: Colors.white.withValues(
                                               alpha: 0.35,
@@ -441,7 +496,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                       )
                                     : Text(
                                         displayOrigin.isEmpty
-                                            ? '示例：http://192.168.2.11:18024'
+                                            ? '示例：http://192.168.2.11:18025'
                                             : displayOrigin,
                                         style: TextStyle(
                                           color: Colors.white.withValues(
@@ -528,7 +583,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               ),
                               decoration: InputDecoration(
                                 isDense: true,
-                                hintText: '粘贴或输入 API KEY',
+                                hintText: '留空表示无鉴权；或粘贴 API KEY',
                                 hintStyle: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.35),
                                 ),
@@ -581,7 +636,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                     ),
                                     decoration: InputDecoration(
                                       isDense: true,
-                                      hintText: '粘贴或输入 API KEY',
+                                      hintText: '留空表示无鉴权；或粘贴 API KEY',
                                       hintStyle: TextStyle(
                                         color: Colors.white.withValues(
                                           alpha: 0.35,
@@ -631,6 +686,84 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               ],
                             ),
                           ],
+                          if (_editingSyncKeyOnly) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              'Sync API KEY（写操作）',
+                              style: TextStyle(
+                                color: muted,
+                                fontSize: 12,
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _syncKeyCtrl,
+                                    autofocus: true,
+                                    obscureText: _syncKeyObscured,
+                                    autocorrect: false,
+                                    enableSuggestions: false,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                    ),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      hintText: '留空则写操作使用 API KEY',
+                                      hintStyle: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.35,
+                                        ),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.black.withValues(
+                                        alpha: 0.25,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      suffixIcon: IconButton(
+                                        tooltip:
+                                            _syncKeyObscured ? '显示' : '隐藏',
+                                        onPressed: () => setState(
+                                          () => _syncKeyObscured =
+                                              !_syncKeyObscured,
+                                        ),
+                                        icon: Icon(
+                                          _syncKeyObscured
+                                              ? Icons.visibility_off_rounded
+                                              : Icons.visibility_rounded,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.65,
+                                          ),
+                                          size: 22,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 40,
+                                    minHeight: 40,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: _saveSyncKeyOnly,
+                                  icon: const Icon(
+                                    Icons.check_rounded,
+                                    color: Color(0xFF69F0AE),
+                                  ),
+                                  tooltip: '保存 Sync KEY',
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -646,7 +779,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ),
                     Text(
                       '确定后将请求 GET {上述地址}/api/v1/members 校验；成功且成员非空后保存站点根（不含 /api/v1）。'
-                      ' 当前输入的 API KEY 会一并保存。',
+                      ' API KEY 可留空（数据中心未配置鉴权时）。',
                       style: TextStyle(
                         color: muted,
                         fontSize: 12,
@@ -664,7 +797,25 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ),
                     ),
                     Text(
-                      '仅保存 API KEY，不会校验服务器地址。点右侧编辑图标可改为同时编辑地址与 API KEY。',
+                      '仅保存 API KEY（可留空），不会校验服务器地址。点右侧编辑图标可改为同时编辑地址与 API KEY。',
+                      style: TextStyle(
+                        color: muted,
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                  if (_editingSyncKeyOnly) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _cancelSyncKeyOnly,
+                        child: const Text('取消'),
+                      ),
+                    ),
+                    Text(
+                      '用于 POST /api/v1/sync/* 与心愿写接口（X-Sync-Key）。可留空；无鉴权环境不必填写。',
                       style: TextStyle(
                         color: muted,
                         fontSize: 12,

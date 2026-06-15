@@ -11,7 +11,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
 import '../../../core/mock/mock_data_notifier.dart';
 import '../../../core/widgets/app_empty.dart';
+import '../../dashboard/data/family_api_client.dart';
+import '../../dashboard/providers/dashboard_remote_providers.dart';
 import '../../dashboard/providers/family_api_base_url_provider.dart';
+import '../../dashboard/providers/family_api_write_refresh.dart';
 import '../../../shared/models/member_entity.dart';
 import '../../../shared/providers/task_ui_providers.dart';
 import '../data/homework_items_bundle.dart';
@@ -33,9 +36,50 @@ String _sidebarDateShort(String bizDate) {
 
 Map<String, dynamic> _decodeMap(String json) {
   try {
-    return Map<String, dynamic>.from(jsonDecode(json) as Map<dynamic, dynamic>);
+    return Map<String, dynamic>.from(
+      jsonDecode(json) as Map<dynamic, dynamic>,
+    );
   } catch (_) {
     return {};
+  }
+}
+
+Future<void> _toggleHomeworkItem(
+  WidgetRef ref,
+  BuildContext context, {
+  required String bizDate,
+  required MemberEntity member,
+  required List<TaskItemEntity> items,
+  required TaskItemEntity item,
+  required bool apiConfigured,
+}) async {
+  if (!apiConfigured) {
+    ref.read(mockDataNotifierProvider.notifier).toggleMemberStatus(
+          bizDate: bizDate,
+          groupCode: item.groupCode,
+          taskCode: item.taskCode,
+          memberCode: member.memberCode,
+        );
+    return;
+  }
+
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    final client = ref.read(familyApiClientProvider);
+    await syncHomeworkMemberDay(
+      client: client,
+      bizDate: bizDate,
+      member: member,
+      items: items,
+      toggleTaskCode: item.taskCode,
+      toggleGroupCode: item.groupCode,
+    );
+    ref.read(taskRemoteRefreshProvider.notifier).state++;
+    refreshAfterFamilyApiWrite(ref);
+  } on FamilyApiException catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(e.message)));
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('同步失败：$e')));
   }
 }
 
@@ -257,7 +301,8 @@ class _HomeworkDateSwipePanelState
               bundle: bundle,
               children: children,
               selectedBizDate: d.bizDate,
-              readOnly: kAppReadOnlyDataMode || apiConfigured,
+              readOnly: kEffectiveReadOnlyDataMode,
+              apiConfigured: apiConfigured,
             ),
           ),
         );
@@ -431,12 +476,14 @@ class _HomeworkMainPanel extends StatelessWidget {
     required this.children,
     required this.selectedBizDate,
     required this.readOnly,
+    required this.apiConfigured,
   });
 
   final HomeworkItemsBundle bundle;
   final List<MemberEntity> children;
   final String selectedBizDate;
   final bool readOnly;
+  final bool apiConfigured;
 
   @override
   Widget build(BuildContext context) {
@@ -458,6 +505,7 @@ class _HomeworkMainPanel extends StatelessWidget {
               items: bundle.itemsForMemberCode(m.memberCode),
               bizDate: selectedBizDate,
               readOnly: readOnly,
+              apiConfigured: apiConfigured,
             ),
           ),
         ),
@@ -472,12 +520,14 @@ class _MemberHomeworkCard extends ConsumerWidget {
     required this.items,
     required this.bizDate,
     required this.readOnly,
+    required this.apiConfigured,
   });
 
   final MemberEntity member;
   final List<TaskItemEntity> items;
   final String bizDate;
   final bool readOnly;
+  final bool apiConfigured;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -562,16 +612,15 @@ class _MemberHomeworkCard extends ConsumerWidget {
               member: member,
               onToggle: readOnly
                   ? null
-                  : () {
-                      ref
-                          .read(mockDataNotifierProvider.notifier)
-                          .toggleMemberStatus(
-                            bizDate: bizDate,
-                            groupCode: item.groupCode,
-                            taskCode: item.taskCode,
-                            memberCode: member.memberCode,
-                          );
-                    },
+                  : () => _toggleHomeworkItem(
+                        ref,
+                        context,
+                        bizDate: bizDate,
+                        member: member,
+                        items: items,
+                        item: item,
+                        apiConfigured: apiConfigured,
+                      ),
             ),
           ),
         ],

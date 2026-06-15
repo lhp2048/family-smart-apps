@@ -4,9 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shell_screen_header.dart';
+import '../../../core/constants/app_product_flags.dart';
+import '../../../features/dashboard/data/family_api_client.dart';
 import '../../../features/dashboard/providers/family_api_base_url_provider.dart';
 import '../../../shared/providers/extracurricular_ui_providers.dart';
 import '../data/extracurricular_models.dart';
+import '../data/extracurricular_remote_write.dart';
 
 const Color _kCard = Color(0xFF1A1A1F);
 const Color _kSelectedRed = Color(0xFF5C1F1F);
@@ -149,7 +152,11 @@ class ExtracurricularPage extends ConsumerWidget {
                         final items = apiOn && unwatchedOnly
                             ? list.where((e) => !e.watched).toList()
                             : list;
-                        return _MediaGrid(items: items);
+                        return _MediaGrid(
+                          items: items,
+                          allowWatchedToggle:
+                              apiOn && !kEffectiveReadOnlyDataMode,
+                        );
                       },
                     );
                   }
@@ -410,13 +417,17 @@ class _SidebarTile extends StatelessWidget {
   }
 }
 
-class _MediaGrid extends StatelessWidget {
-  const _MediaGrid({required this.items});
+class _MediaGrid extends ConsumerWidget {
+  const _MediaGrid({
+    required this.items,
+    this.allowWatchedToggle = false,
+  });
 
   final List<ExtracurricularItem> items;
+  final bool allowWatchedToggle;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
       return Center(
         child: Text(
@@ -445,7 +456,26 @@ class _MediaGrid extends StatelessWidget {
               for (final item in items)
                 SizedBox(
                   width: tileW,
-                  child: _MediaCard(item: item),
+                  child: _MediaCard(
+                    item: item,
+                    allowWatchedToggle: allowWatchedToggle,
+                    onToggleWatched: allowWatchedToggle
+                        ? () async {
+                            try {
+                              await toggleExtracurricularWatchedRemote(
+                                ref,
+                                item,
+                              );
+                            } on FamilyApiException catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.message)),
+                                );
+                              }
+                            }
+                          }
+                        : null,
+                  ),
                 ),
             ],
           ),
@@ -486,9 +516,15 @@ Color _pillTextColor(ExtracurricularMediumKind k) {
 }
 
 class _MediaCard extends StatefulWidget {
-  const _MediaCard({required this.item});
+  const _MediaCard({
+    required this.item,
+    this.allowWatchedToggle = false,
+    this.onToggleWatched,
+  });
 
   final ExtracurricularItem item;
+  final bool allowWatchedToggle;
+  final Future<void> Function()? onToggleWatched;
 
   @override
   State<_MediaCard> createState() => _MediaCardState();
@@ -617,7 +653,11 @@ class _MediaCardState extends State<_MediaCard> {
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              Container(
+                              GestureDetector(
+                                onTap: widget.allowWatchedToggle
+                                    ? widget.onToggleWatched
+                                    : null,
+                                child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 6,
                                   vertical: 3,
@@ -649,6 +689,7 @@ class _MediaCardState extends State<_MediaCard> {
                                     ),
                                   ],
                                 ),
+                              ),
                               ),
                             ],
                           ),
