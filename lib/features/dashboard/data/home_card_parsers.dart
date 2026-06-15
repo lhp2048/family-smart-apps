@@ -1,60 +1,124 @@
 import 'package:flutter/material.dart';
 
+import '../../points/data/points_api_mappers.dart';
+import '../../tasks/data/task_api_mappers.dart';
+import '../../../shared/models/member_entity.dart';
 import 'dashboard_prototype_models.dart';
 
-/// 当作业摘要接口无 `rows` 时，用成员列表生成行（进度暂为 `-/-`）。
-/// 优先展示 `role == child` 的成员；若无孩子则展示全部活跃成员。
-List<DashboardHomeworkRow> homeworkRowsFromMembers(
+int _dashboardCardParticipantRoleRank(String role) {
+  switch (role) {
+    case 'child':
+      return 0;
+    case 'parent':
+      return 1;
+    default:
+      return 2;
+  }
+}
+
+void _sortDashboardCardParticipants(List<MemberEntity> members) {
+  members.sort((a, b) {
+    final byRole = _dashboardCardParticipantRoleRank(a.role)
+        .compareTo(_dashboardCardParticipantRoleRank(b.role));
+    if (byRole != 0) return byRole;
+    return a.memberCode.compareTo(b.memberCode);
+  });
+}
+
+List<MemberEntity> activeDashboardCardParticipants(
   List<Map<String, dynamic>> members,
 ) {
-  final active = members
-      .where((m) => (m['status']?.toString() ?? 'active') != 'inactive')
+  final out = members
+      .map(memberFromApiMap)
+      .where(isActivePointsParticipant)
       .toList();
-  final children =
-      active.where((m) => m['role']?.toString() == 'child').toList();
-  final source = children.isNotEmpty ? children : active;
-  final out = <DashboardHomeworkRow>[];
-  final seen = <String>{};
-  for (final m in source) {
+  _sortDashboardCardParticipants(out);
+  return out;
+}
+
+/// 从作业卡 API `rows` 解析各成员进度（key 为 memberCode）。
+Map<String, String> homeworkProgressByMemberCode(Map<String, dynamic> data) {
+  final raw = data['rows'];
+  if (raw is! List) return {};
+  final out = <String, String>{};
+  for (final e in raw) {
+    if (e is! Map) continue;
+    final m = Map<String, dynamic>.from(e);
     final code = m['memberCode']?.toString() ?? '';
-    if (code.isNotEmpty) {
-      if (seen.contains(code)) continue;
-      seen.add(code);
-    }
-    var name = m['name']?.toString() ?? m['displayName']?.toString() ?? '';
-    if (name.isEmpty) {
-      name = code.isNotEmpty ? code : '成员';
-    }
-    out.add(DashboardHomeworkRow(name, '-/-'));
+    if (code.isEmpty) continue;
+    final done = (m['doneCount'] as num?)?.toInt() ?? 0;
+    final total = (m['totalCount'] as num?)?.toInt() ?? 0;
+    out[code] = total <= 0 ? '-/-' : '$done/$total';
   }
   return out;
 }
 
-/// 积分卡无 `rows` 时的兜底：active 的 child / parent，0 分。
+/// 按积分榜同款参与人（active 的 child / parent）列举作业进度；
+/// 排序：先 child，再 parent，同角色按 memberCode。
+List<DashboardHomeworkRow> homeworkRowsForParticipants(
+  List<Map<String, dynamic>> members,
+  Map<String, String> progressByCode,
+) {
+  final participants = activeDashboardCardParticipants(members);
+  if (participants.isEmpty) {
+    return const [];
+  }
+
+  return participants
+      .map((m) {
+        final name = m.name.isNotEmpty ? m.name : m.memberCode;
+        final progress = progressByCode[m.memberCode] ?? '-/-';
+        return DashboardHomeworkRow(name, progress);
+      })
+      .toList(growable: false);
+}
+
+/// 当作业摘要接口无 `rows` 时，用成员列表生成行（进度为 `-/-`）。
+List<DashboardHomeworkRow> homeworkRowsFromMembers(
+  List<Map<String, dynamic>> members,
+) {
+  return homeworkRowsForParticipants(members, const {});
+}
+
+/// 从积分卡 API `rows` 解析各成员总分（key 为 memberCode）。
+Map<String, int> pointsScoreByMemberCode(Map<String, dynamic> data) {
+  final raw = data['rows'];
+  if (raw is! List) return {};
+  final out = <String, int>{};
+  for (final e in raw) {
+    if (e is! Map) continue;
+    final m = Map<String, dynamic>.from(e);
+    final code = m['memberCode']?.toString() ?? '';
+    if (code.isEmpty) continue;
+    out[code] = (m['score'] as num?)?.toInt() ?? 0;
+  }
+  return out;
+}
+
+/// 按 active 的 child / parent 列举积分榜；排序与作业卡一致。
+List<DashboardPointsRow> pointsRowsForParticipants(
+  List<Map<String, dynamic>> members,
+  Map<String, int> scoreByCode,
+) {
+  final participants = activeDashboardCardParticipants(members);
+  if (participants.isEmpty) {
+    return const [];
+  }
+
+  return participants
+      .map((m) {
+        final name = m.name.isNotEmpty ? m.name : m.memberCode;
+        final score = scoreByCode[m.memberCode] ?? 0;
+        return DashboardPointsRow(name, score);
+      })
+      .toList(growable: false);
+}
+
+/// 积分卡无 `rows` 时的兜底：active 的 child / parent，0 分；排序与作业卡一致。
 List<DashboardPointsRow> pointsRowsFromMembers(
   List<Map<String, dynamic>> members,
 ) {
-  final source = members.where((m) {
-    final status = (m['status']?.toString() ?? 'active').toLowerCase();
-    if (status != 'active') return false;
-    final role = m['role']?.toString() ?? '';
-    return role == 'child' || role == 'parent';
-  }).toList();
-  final out = <DashboardPointsRow>[];
-  final seen = <String>{};
-  for (final m in source) {
-    final code = m['memberCode']?.toString() ?? '';
-    if (code.isNotEmpty) {
-      if (seen.contains(code)) continue;
-      seen.add(code);
-    }
-    var name = m['name']?.toString() ?? m['displayName']?.toString() ?? '';
-    if (name.isEmpty) {
-      name = code.isNotEmpty ? code : '成员';
-    }
-    out.add(DashboardPointsRow(name, 0));
-  }
-  return out;
+  return pointsRowsForParticipants(members, const {});
 }
 
 Color? parseBadgeColorHex(String? s) {
@@ -136,36 +200,4 @@ List<DashboardLifeMenuItem> mergeLifeMenuTemplateWithBadges(
         );
       })
       .toList(growable: false);
-}
-
-List<DashboardHomeworkRow> parseHomeworkCardRows(Map<String, dynamic> data) {
-  final raw = data['rows'];
-  if (raw is! List) return const [];
-  final out = <DashboardHomeworkRow>[];
-  for (final e in raw) {
-    if (e is! Map) continue;
-    final m = Map<String, dynamic>.from(e);
-    final name =
-        m['displayName']?.toString() ?? m['memberCode']?.toString() ?? '?';
-    final done = (m['doneCount'] as num?)?.toInt() ?? 0;
-    final total = (m['totalCount'] as num?)?.toInt() ?? 0;
-    final progressText = total <= 0 ? '-/-' : '$done/$total';
-    out.add(DashboardHomeworkRow(name, progressText));
-  }
-  return out;
-}
-
-List<DashboardPointsRow> parsePointsCardRows(Map<String, dynamic> data) {
-  final raw = data['rows'];
-  if (raw is! List) return const [];
-  final out = <DashboardPointsRow>[];
-  for (final e in raw) {
-    if (e is! Map) continue;
-    final m = Map<String, dynamic>.from(e);
-    final name =
-        m['displayName']?.toString() ?? m['memberCode']?.toString() ?? '?';
-    final score = (m['score'] as num?)?.toInt() ?? 0;
-    out.add(DashboardPointsRow(name, score));
-  }
-  return out;
 }

@@ -53,23 +53,27 @@ final dashboardHomeworkRowsProvider =
   final bizDate = ref.watch(dashboardHomeworkBizDateProvider);
 
   Object? homeworkError;
+  Map<String, dynamic>? homeworkData;
   try {
-    final data = await client.getHomeworkCard(bizDate);
-    final rows = parseHomeworkCardRows(data);
-    if (rows.isNotEmpty) {
-      return rows;
-    }
+    homeworkData = await client.getHomeworkCard(bizDate);
   } catch (e) {
     homeworkError = e;
   }
 
   try {
     final members = await client.fetchMembers();
-    final fallback = homeworkRowsFromMembers(members);
-    if (fallback.isNotEmpty) {
-      return fallback;
+    final progressByCode = homeworkData == null
+        ? const <String, String>{}
+        : homeworkProgressByMemberCode(homeworkData);
+    final rows = homeworkRowsForParticipants(members, progressByCode);
+    if (rows.isNotEmpty) {
+      return rows;
     }
-  } catch (_) {}
+  } catch (membersError) {
+    if (homeworkError == null) {
+      homeworkError = membersError;
+    }
+  }
 
   if (homeworkError != null) {
     throw homeworkError;
@@ -86,26 +90,30 @@ final dashboardPointsRowsProvider =
   final p = ref.watch(dashboardPointsPeriodProvider);
 
   Object? pointsError;
+  Map<String, dynamic>? pointsData;
   try {
-    final data = await client.getPointsCard(
+    pointsData = await client.getPointsCard(
       periodStart: p.periodStart,
       periodEnd: p.periodEnd,
     );
-    final rows = parsePointsCardRows(data);
-    if (rows.isNotEmpty) {
-      return rows;
-    }
   } catch (e) {
     pointsError = e;
   }
 
   try {
     final members = await client.fetchMembers();
-    final fallback = pointsRowsFromMembers(members);
-    if (fallback.isNotEmpty) {
-      return fallback;
+    final scoreByCode = pointsData == null
+        ? const <String, int>{}
+        : pointsScoreByMemberCode(pointsData);
+    final rows = pointsRowsForParticipants(members, scoreByCode);
+    if (rows.isNotEmpty) {
+      return rows;
     }
-  } catch (_) {}
+  } catch (membersError) {
+    if (pointsError == null) {
+      pointsError = membersError;
+    }
+  }
 
   if (pointsError != null) {
     throw pointsError;
