@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# family_smart_center — 解压 Windows 打包的 Web 静态站并托管（默认 :18027）
+# family_smart_center — 解压 Windows 打包的 Web 静态站并托管（默认 :18024）
 # 用法:
 #   ./scripts/unpack_and_serve_mac.sh ~/Downloads/family_smart_center_web.zip
 #   ./scripts/unpack_and_serve_mac.sh ~/Downloads/family_smart_center_web.zip ~/Sites/fsc_web
@@ -7,7 +7,7 @@ set -euo pipefail
 
 ZIP="${1:-}"
 DEST="${2:-${HOME}/family_smart_center_web}"
-PORT="${PORT:-18027}"
+PORT="${PORT:-18024}"
 BIND="${BIND:-0.0.0.0}"
 
 if [[ -z "${ZIP}" ]] || [[ ! -f "${ZIP}" ]]; then

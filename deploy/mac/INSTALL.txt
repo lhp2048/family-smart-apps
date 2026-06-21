@@ -31,8 +31,8 @@
 五、查看状态
   ./scripts/install_service_mac.sh --status
 
-默认端口: 18027
-浏览器: http://127.0.0.1:18027
+默认端口: 18024
+浏览器: http://127.0.0.1:18024
 
 日志: ~/Library/Logs/familybot-web-app/
 

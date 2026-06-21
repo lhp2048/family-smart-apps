@@ -21,7 +21,7 @@ LOG_DIR="${HOME}/Library/Logs/familybot-web-app"
 
 DO_UNINSTALL=0
 DO_STATUS=0
-PORT="18027"
+PORT="18024"
 BIND="0.0.0.0"
 
 usage() {
@@ -51,7 +51,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --uninstall) DO_UNINSTALL=1; shift ;;
     --status)    DO_STATUS=1; shift ;;
-    --port)      PORT="${2:-18027}"; shift 2 ;;
+    --port)      PORT="${2:-18024}"; shift 2 ;;
     --bind)      BIND="${2:-0.0.0.0}"; shift 2 ;;
     -h|--help)   usage; exit 0 ;;
     *) echo "未知参数: $1" >&2; usage; exit 1 ;;

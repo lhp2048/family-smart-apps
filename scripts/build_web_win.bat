@@ -42,7 +42,7 @@ if errorlevel 1 exit /b 1
 call "%DART%" run tool/generate_build_stamp.dart
 if errorlevel 1 exit /b 1
 
-call "%FLUTTER%" build web --release --no-wasm-dry-run
+call "%FLUTTER%" build web --release --no-wasm-dry-run --base-href=/app/
 if errorlevel 1 exit /b 1
 
 echo.

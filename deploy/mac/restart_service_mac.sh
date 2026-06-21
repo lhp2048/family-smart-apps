@@ -18,7 +18,7 @@ LOG_DIR="${HOME}/Library/Logs/familybot-web-app"
 PID_FILE="${LOG_DIR}/web-app.pid"
 
 MODE="auto"
-PORT="18027"
+PORT="18024"
 DO_FORCE=0
 
 usage() {
@@ -100,7 +100,7 @@ while [[ $# -gt 0 ]]; do
     --manual) MODE="manual"; shift ;;
     --check)  MODE="check"; shift ;;
     --force)  DO_FORCE=1; shift ;;
-    --port)   PORT="${2:-18027}"; shift 2 ;;
+    --port)   PORT="${2:-18024}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "未知参数: $1" >&2; usage; exit 1 ;;
   esac

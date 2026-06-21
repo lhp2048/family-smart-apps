@@ -13,7 +13,7 @@ fi
 
 flutter pub get
 dart run tool/generate_build_stamp.dart
-flutter build web --release
+flutter build web --release --base-href=/app/
 
 echo ""
 echo "构建完成: ${APP_ROOT}/build/web"

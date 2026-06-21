@@ -10,7 +10,7 @@
 |------|------|
 | AI 服务 `family_smart_center_server` | 18024 |
 | 数据中心 `family_smart_datacenter` | 18025 |
-| **本 App Web 静态站** | **18027** |
+| **Web 门户** `family_smart_center_web` | **18024**（`/app/` 为 Flutter 只读 App） |
 
 ## 接入 Datacenter
 
@@ -19,20 +19,19 @@
 3. **API KEY**：无鉴权环境留空；有鉴权时填 `X-API-Key`（写操作可用 Sync Key，见设置）
 4. 保存并校验通过后，各页面从 datacenter 在线读数据
 
-## Web 只读发布（macOS）
+## Web 门户发布（:18024）
 
-Web 端自动只读（`kIsWeb`）：仅展示数据，不可勾选作业、不可切换心愿。移动端保留写能力。
+Web 由 [`family_smart_center_web`](../family_smart_center_web/) 统一托管：产品宣传、管理入口、全局设置；Flutter 只读 App 在 `/app/`。
 
 ```bash
-cd family_smart_center
-chmod +x scripts/build_web_mac.sh scripts/serve_web_mac.sh
-./scripts/build_web_mac.sh
-./scripts/serve_web_mac.sh
+cd family_smart_center_web
+./scripts/build.sh          # 或 Windows: scripts\build_and_pack.bat
+./scripts/serve.sh
 ```
 
-浏览器打开 `http://127.0.0.1:18027`（局域网用 Mac IP）。Safari 可「添加到程序坞」作为 PWA。
+浏览器打开 `http://127.0.0.1:18024`。设置页保存的配置为**服务全局**，所有访问者一致。
 
-**运行时依赖**：已构建的 `build/web/` + Python 3 托管静态站；真实数据还需 datacenter `:18025` 同时运行。
+Web 端 App 自动只读（`kIsWeb`）：仅展示数据，不可勾选作业、不可切换心愿。
 
 ## 开发
 

@@ -1,19 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../points/data/points_api_mappers.dart';
 import '../../tasks/data/task_api_mappers.dart';
 import '../../../shared/models/member_entity.dart';
 import 'dashboard_prototype_models.dart';
 
 int _dashboardCardParticipantRoleRank(String role) {
-  switch (role) {
-    case 'child':
-      return 0;
-    case 'parent':
-      return 1;
-    default:
-      return 2;
-  }
+  return role == 'child' ? 0 : 1;
 }
 
 void _sortDashboardCardParticipants(List<MemberEntity> members) {
@@ -25,12 +17,13 @@ void _sortDashboardCardParticipants(List<MemberEntity> members) {
   });
 }
 
+/// 首页作业/积分卡参与人：全部 active 成员；先 child，再其他角色。
 List<MemberEntity> activeDashboardCardParticipants(
   List<Map<String, dynamic>> members,
 ) {
   final out = members
       .map(memberFromApiMap)
-      .where(isActivePointsParticipant)
+      .where((m) => m.status == 'active')
       .toList();
   _sortDashboardCardParticipants(out);
   return out;
@@ -53,8 +46,7 @@ Map<String, String> homeworkProgressByMemberCode(Map<String, dynamic> data) {
   return out;
 }
 
-/// 按积分榜同款参与人（active 的 child / parent）列举作业进度；
-/// 排序：先 child，再 parent，同角色按 memberCode。
+/// 按全部 active 成员列举作业进度；排序：先 child，再其他角色，同组按 memberCode。
 List<DashboardHomeworkRow> homeworkRowsForParticipants(
   List<Map<String, dynamic>> members,
   Map<String, String> progressByCode,
@@ -95,7 +87,7 @@ Map<String, int> pointsScoreByMemberCode(Map<String, dynamic> data) {
   return out;
 }
 
-/// 按 active 的 child / parent 列举积分榜；排序与作业卡一致。
+/// 按全部 active 成员列举积分榜；排序与作业卡一致。
 List<DashboardPointsRow> pointsRowsForParticipants(
   List<Map<String, dynamic>> members,
   Map<String, int> scoreByCode,
@@ -114,7 +106,7 @@ List<DashboardPointsRow> pointsRowsForParticipants(
       .toList(growable: false);
 }
 
-/// 积分卡无 `rows` 时的兜底：active 的 child / parent，0 分；排序与作业卡一致。
+/// 积分卡无 `rows` 时的兜底：全部 active 成员，0 分；排序与作业卡一致。
 List<DashboardPointsRow> pointsRowsFromMembers(
   List<Map<String, dynamic>> members,
 ) {
