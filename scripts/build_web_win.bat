@@ -42,12 +42,18 @@ if errorlevel 1 exit /b 1
 call "%DART%" run tool/generate_build_stamp.dart
 if errorlevel 1 exit /b 1
 
-call "%FLUTTER%" build web --release --no-wasm-dry-run --base-href=/app/
+call "%FLUTTER%" build web --release --no-wasm-dry-run --base-href=/ --pwa-strategy=none
 if errorlevel 1 exit /b 1
+
+if not exist "%APP_ROOT%\build\web\scripts" mkdir "%APP_ROOT%\build\web\scripts"
+copy /Y "%APP_ROOT%\deploy\mac\*.sh" "%APP_ROOT%\build\web\scripts\" >nul
+copy /Y "%APP_ROOT%\deploy\mac\serve_web.py" "%APP_ROOT%\build\web\scripts\serve_web.py" >nul
+copy /Y "%APP_ROOT%\deploy\web\flutter_service_worker_uninstall.js" "%APP_ROOT%\build\web\flutter_service_worker.js" >nul
+copy /Y "%APP_ROOT%\deploy\mac\INSTALL.txt" "%APP_ROOT%\build\web\INSTALL.txt" >nul
 
 echo.
 echo Done: %CD%\build\web
-echo One-shot pack: scripts\build_and_pack_web_win.bat
-echo Or pack only: scripts\pack_web_for_mac_win.bat
+echo Pack zip:  scripts\pack_web_for_mac_win.bat  -^>  dist_out\family_smart_apps_web.zip
+echo One-shot:   scripts\build_and_pack_web_win.bat
 
 endlocal

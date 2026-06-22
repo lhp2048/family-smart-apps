@@ -121,20 +121,11 @@ final dashboardPointsRowsProvider =
   return const [];
 });
 
-/// P1：`/v1/home/cards/life-menu-badges` 与本地 [kDashboardLifeMenuTemplate] 合并。
+/// 本地固定的「学习和生活」文案与路由；小号角标由各自 `GET /home/cards/{cardId}?size=small` 提供。
 final dashboardLifeMenuItemsProvider =
-    FutureProvider<List<DashboardLifeMenuItem>>((ref) async {
+    Provider<List<DashboardLifeMenuItem>>((ref) {
   if (!ref.watch(familyApiIsConfiguredProvider)) {
     return ref.read(mockDataNotifierProvider).dashboardLifeMenu;
   }
-  final client = ref.watch(familyApiClientProvider);
-  Map<String, LifeMenuBadgeSpec> byRoute = {};
-  try {
-    final data = await client.getLifeMenuBadges();
-    byRoute = parseLifeMenuBadgesByRoute(data);
-  } catch (_) {}
-  return mergeLifeMenuTemplateWithBadges(
-    kDashboardLifeMenuTemplate,
-    byRoute,
-  );
+  return kDashboardLifeMenuTemplate;
 });

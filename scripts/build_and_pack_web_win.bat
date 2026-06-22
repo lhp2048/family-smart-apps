@@ -1,7 +1,12 @@
 @echo off
 setlocal EnableExtensions
 
-rem Deprecated: use family_smart_center_web\scripts\build_and_pack.bat
-echo NOTE: Web portal packaging moved to family_smart_center_web
-call "%~dp0..\..\family_smart_center_web\scripts\build_and_pack.bat"
+rem Build Web Release and pack zip (family_smart_apps only)
+rem Usage: scripts\build_and_pack_web_win.bat
+
+call "%~dp0build_web_win.bat"
+if errorlevel 1 exit /b 1
+
+call "%~dp0pack_web_for_mac_win.bat"
 exit /b %ERRORLEVEL%
+

@@ -134,25 +134,40 @@ String pointsRecordBizDate(Map<String, dynamic> m) {
   return '';
 }
 
+/// 成员展示名：优先 API `displayName`，其次 `name`。
+String memberDisplayNameFromApiMap(Map<String, dynamic> m) {
+  final dn = m['displayName']?.toString().trim();
+  if (dn != null && dn.isNotEmpty) return dn;
+  final name = m['name']?.toString().trim();
+  if (name != null && name.isNotEmpty) return name;
+  return m['memberCode']?.toString().trim() ?? '';
+}
+
+/// 积分明细「人员」列：优先 displayName（流水 → 成员表），person 仅历史兜底。
+String resolvePointsRecordPerson(
+  Map<String, dynamic> m,
+  Map<String, String> displayNameByMemberCode,
+) {
+  final mc = m['memberCode']?.toString() ?? '';
+
+  final apiDisplay = m['displayName']?.toString().trim();
+  if (apiDisplay != null && apiDisplay.isNotEmpty) return apiDisplay;
+
+  final memberDisplay = displayNameByMemberCode[mc]?.trim();
+  if (memberDisplay != null && memberDisplay.isNotEmpty) return memberDisplay;
+
+  final apiPerson = m['person']?.toString().trim();
+  if (apiPerson != null && apiPerson.isNotEmpty) return apiPerson;
+
+  return mc.isNotEmpty ? mc : '—';
+}
+
 PointsLogRow pointsLogRowFromApi(
   Map<String, dynamic> m,
   Map<String, String> displayNameByMemberCode,
 ) {
   final delta = (m['delta'] as num?)?.toInt() ?? 0;
-  final mc = m['memberCode']?.toString() ?? '';
-
-  final apiPerson = m['person']?.toString().trim();
-  final apiDisplay = m['displayName']?.toString().trim();
-  String person;
-  if (apiPerson != null && apiPerson.isNotEmpty) {
-    person = apiPerson;
-  } else if (apiDisplay != null && apiDisplay.isNotEmpty) {
-    person = apiDisplay;
-  } else if (displayNameByMemberCode[mc]?.trim().isNotEmpty == true) {
-    person = displayNameByMemberCode[mc]!.trim();
-  } else {
-    person = mc.isNotEmpty ? mc : '—';
-  }
+  final person = resolvePointsRecordPerson(m, displayNameByMemberCode);
 
   final note = m['note']?.toString() ?? '';
   final remark = m['remark']?.toString() ?? '';
@@ -344,7 +359,7 @@ computePointsSummaryFromRecords(
     final dn = r['displayName']?.toString().trim();
     final person = r['person']?.toString().trim();
     if (dn != null && dn.isNotEmpty) {
-      names[mc] = dn;
+      names.putIfAbsent(mc, () => dn);
     } else if (person != null && person.isNotEmpty) {
       names.putIfAbsent(mc, () => person);
     }
@@ -370,8 +385,9 @@ fetchPointsMemberCodes(FamilyApiClient client) async {
       final code = entity.memberCode;
       if (code.isEmpty) continue;
       codes.add(code);
-      if (entity.name.isNotEmpty) {
-        names[code] = entity.name;
+      final label = memberDisplayNameFromApiMap(m);
+      if (label.isNotEmpty) {
+        names[code] = label;
       }
     }
   } catch (_) {}

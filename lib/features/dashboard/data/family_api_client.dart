@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/utils/api_base_url.dart';
 import '../../../core/utils/bearer_token.dart';
@@ -124,6 +125,10 @@ class FamilyApiClient {
       case DioExceptionType.receiveTimeout:
         return '连接超时，请检查 IP、端口与网络';
       case DioExceptionType.connectionError:
+        if (kIsWeb) {
+          return '无法连接服务器。Web 版访问局域网地址常被浏览器拦截，请改用 Windows/手机 App，'
+              '或确认 datacenter 已更新并重启（需支持 CORS 预检）';
+        }
         return '无法连接服务器，请检查 IP、端口、防火墙与网络';
       default:
         break;
@@ -217,6 +222,80 @@ class FamilyApiClient {
   Future<Map<String, dynamic>> getLifeMenuBadges() async {
     final res =
         await _dio.get<Map<String, dynamic>>('home/cards/life-menu-badges');
+    return _unwrapData(res.data);
+  }
+
+  /// `GET /v1/home/cards/calendar?bizDate=`
+  Future<Map<String, dynamic>> getHomeCalendarCard(String bizDate) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      'home/cards/calendar',
+      queryParameters: {'bizDate': bizDate},
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `GET /v1/home/cards/{cardId}?size=small|medium|large`
+  Future<Map<String, dynamic>> getHomeCardPreview({
+    required String cardId,
+    required String size,
+    String? bizDate,
+    String? periodStart,
+    String? periodEnd,
+  }) async {
+    final params = <String, dynamic>{'size': size};
+    if (bizDate != null && bizDate.isNotEmpty) {
+      params['bizDate'] = bizDate;
+    }
+    if (periodStart != null && periodStart.isNotEmpty) {
+      params['periodStart'] = periodStart;
+    }
+    if (periodEnd != null && periodEnd.isNotEmpty) {
+      params['periodEnd'] = periodEnd;
+    }
+    final res = await _dio.get<Map<String, dynamic>>(
+      'home/cards/$cardId',
+      queryParameters: params,
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `GET /v1/calendar/month?monthKey=`
+  Future<Map<String, dynamic>> getCalendarMonth(String monthKey) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      'calendar/month',
+      queryParameters: {'monthKey': monthKey},
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `GET /v1/calendar/day?bizDate=`
+  Future<Map<String, dynamic>> getCalendarDay(String bizDate) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      'calendar/day',
+      queryParameters: {'bizDate': bizDate},
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `DELETE /v1/calendar/events/{eventId}`
+  Future<Map<String, dynamic>> deleteCalendarEvent(String eventId) async {
+    final res = await _dio.delete<Map<String, dynamic>>(
+      'calendar/events/$eventId',
+      options: _writeOptions(),
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `POST /v1/sync/calendar-event`
+  Future<Map<String, dynamic>> syncCalendarEvent(
+    Map<String, dynamic> event, {
+    String source = kDefaultWriteSource,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      'sync/calendar-event',
+      data: {'event': event, 'source': source},
+      options: _writeOptions(),
+    );
     return _unwrapData(res.data);
   }
 
@@ -591,6 +670,76 @@ class FamilyApiClient {
     final res = await _dio.post<Map<String, dynamic>>(
       'sync/members',
       data: {'members': members, 'source': source},
+      options: _writeOptions(),
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `GET /v1/shopping/items`
+  Future<Map<String, dynamic>> fetchShoppingItems({
+    int page = 1,
+    int pageSize = 50,
+    String? purchased,
+    String? platform,
+    String? memberCode,
+  }) async {
+    final q = <String, dynamic>{
+      'page': page,
+      'pageSize': pageSize,
+    };
+    if (purchased != null && purchased.isNotEmpty) {
+      q['purchased'] = purchased;
+    }
+    if (platform != null && platform.isNotEmpty) {
+      q['platform'] = platform;
+    }
+    if (memberCode != null && memberCode.isNotEmpty) {
+      q['memberCode'] = memberCode;
+    }
+    final res = await _dio.get<Map<String, dynamic>>(
+      'shopping/items',
+      queryParameters: q,
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `GET /v1/shopping/items/{itemId}`
+  Future<Map<String, dynamic>> fetchShoppingItem(String itemId) async {
+    final res = await _dio.get<Map<String, dynamic>>('shopping/items/$itemId');
+    return _unwrapData(res.data);
+  }
+
+  /// `GET /v1/shopping/items/{itemId}/price-history`
+  Future<Map<String, dynamic>> fetchShoppingPriceHistory(
+    String itemId, {
+    String view = 'trend',
+  }) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      'shopping/items/$itemId/price-history',
+      queryParameters: {'view': view},
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `GET /v1/shopping/price-trends`
+  Future<Map<String, dynamic>> fetchShoppingPriceTrends(
+    List<String> itemIds, {
+    String view = 'trend',
+  }) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      'shopping/price-trends',
+      queryParameters: {
+        'itemIds': itemIds.join(','),
+        'view': view,
+      },
+    );
+    return _unwrapData(res.data);
+  }
+
+  /// `POST /v1/shopping/items/{itemId}/toggle-purchased`
+  Future<Map<String, dynamic>> toggleShoppingPurchased(String itemId) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      'shopping/items/$itemId/toggle-purchased',
       options: _writeOptions(),
     );
     return _unwrapData(res.data);

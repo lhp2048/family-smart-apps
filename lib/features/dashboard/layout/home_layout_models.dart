@@ -1,24 +1,46 @@
-/// 首页功能卡展示形态：摘要（数据预览）或入口（简洁跳转）。
+/// 首页功能卡展示形态：小（入口条）、中（摘要，可并排）、大（摘要，通栏双倍高）。
 enum HomeCardSize {
-  summary,
-  entry;
+  small,
+  medium,
+  large;
 
   String toJson() => name;
 
   String get label => switch (this) {
-        HomeCardSize.summary => '摘要卡',
-        HomeCardSize.entry => '入口卡',
+        HomeCardSize.small => '小',
+        HomeCardSize.medium => '中',
+        HomeCardSize.large => '大',
       };
+
+  bool get isSmall => this == HomeCardSize.small;
+
+  bool get isMedium => this == HomeCardSize.medium;
+
+  bool get isLarge => this == HomeCardSize.large;
+
+  /// 中 / 大使用摘要内容；小使用入口条。
+  bool get usesSummaryContent => isMedium || isLarge;
+
+  /// 仅中号可与相邻中号并排（一行 2 个）。
+  bool get canPairHorizontally => isMedium;
+
+  /// 小号可与相邻小号并排（一行最多 [kHomeSmallCardsMaxPerRow] 个）。
+  bool get canGroupInSmallRow => isSmall;
 
   static HomeCardSize fromJson(String? raw) {
     switch (raw) {
+      case 'small':
       case 'entry':
       case 'thin':
-        return HomeCardSize.entry;
+        return HomeCardSize.small;
+      case 'large':
+        return HomeCardSize.large;
+      case 'medium':
       case 'summary':
       case 'fat':
+        return HomeCardSize.medium;
       default:
-        return HomeCardSize.summary;
+        return HomeCardSize.medium;
     }
   }
 }

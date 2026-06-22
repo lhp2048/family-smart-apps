@@ -11,6 +11,7 @@
 | AI 服务 `family_smart_center_server` | 18024 |
 | 数据中心 `family_smart_datacenter` | 18025 |
 | **Web 门户** `family_smart_center_web` | **18024**（`/app/` 为 Flutter 只读 App） |
+| **本 App 独立 Web 部署**（Mac 解压 zip） | **18027** |
 
 ## 接入 Datacenter
 
@@ -19,19 +20,31 @@
 3. **API KEY**：无鉴权环境留空；有鉴权时填 `X-API-Key`（写操作可用 Sync Key，见设置）
 4. 保存并校验通过后，各页面从 datacenter 在线读数据
 
-## Web 门户发布（:18024）
+## 本 App 独立 Web 打包与 Mac 部署（:18027）
 
-Web 由 [`family_smart_center_web`](../family_smart_center_web/) 统一托管：产品宣传、管理入口、全局设置；Flutter 只读 App 在 `/app/`。
+Windows 一键构建并打包（产物在本项目内）：
 
-```bash
-cd family_smart_center_web
-./scripts/build.sh          # 或 Windows: scripts\build_and_pack.bat
-./scripts/serve.sh
+```bat
+cd family_smart_apps
+scripts\build_and_pack_web_win.bat
 ```
 
-浏览器打开 `http://127.0.0.1:18024`。设置页保存的配置为**服务全局**，所有访问者一致。
+输出：
+- 构建：`family_smart_apps/build/web/`
+- zip：`family_smart_apps/dist_out/family_smart_apps_web.zip`
 
-Web 端 App 自动只读（`kIsWeb`）：仅展示数据，不可勾选作业、不可切换心愿。
+Mac 首次安装或升级：
+
+```bash
+chmod +x scripts/*.sh
+./scripts/install_service_mac.sh
+# 或升级：
+./scripts/update_service_mac.sh ~/Downloads/family_smart_apps_web.zip ~/family_smart_apps_web
+```
+
+浏览器：`http://127.0.0.1:18027`
+
+Web 构建已禁用 Service Worker（`--pwa-strategy=none`），并内置 SW/Cache 自动清理（保留 Local Storage）。Mac 升级后打开页面即可，**首次可能自动刷新一次**；之后普通刷新即可，不会清掉服务器地址等本地设置。
 
 ## 开发
 

@@ -1,2 +1,3 @@
+*.bat text eol=crlf
 deploy/mac/*.sh text eol=lf
 scripts/*.sh text eol=lf

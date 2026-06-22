@@ -7,6 +7,7 @@ family_smart_center — Flutter 客户端需求说明
 
   · 设置中配置站点根 + API KEY（可空）即可接入。
   · Web 门户由 family_smart_center_web 托管，默认 :18024；Flutter App 路径 /app/。
+  · 本 App 独立 Web 静态站（Mac zip 解压部署）默认 :18027。
   · AI 智能服务（:18024）本 App 不直接调用。
 
 
@@ -38,13 +39,17 @@ family_smart_center — Flutter 客户端需求说明
 
 五、构建与部署
 --------------------------------------------------------------------------------
-Web 门户见 family_smart_center_web/REQ.txt。
+Flutter Web 构建:
+  scripts/build_web_mac.sh / build_web_win.bat
+  输出: build/web/
 
-Flutter Web 构建（供门户 assemble）:
-  flutter build web --release --base-href=/app/
-  或 scripts/build_web_mac.sh / build_web_win.bat
+Windows 打包 zip（Mac 部署）:
+  scripts/build_and_pack_web_win.bat
+  输出: dist_out/family_smart_apps_web.zip
 
-一键打包（Windows）:
-  family_smart_center_web\scripts\build_and_pack.bat
+Mac 升级:
+  ./scripts/update_service_mac.sh <zip路径> <解压目录>
+
+Web 构建使用 --pwa-strategy=none；index.html 启动时自动注销 SW 并清 Cache API（保留 Local Storage）。升级后打开页面即可，首次可能自动刷新一次。
 
 契约：项目根 后台API需求说明.md；datacenter REQ.txt。

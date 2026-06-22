@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'home_layout_defaults.dart';
+import 'home_layout_migration.dart';
 import 'home_layout_models.dart';
 
 const _kPrefsHomeLayout = 'home_layout_config_v1';
@@ -25,17 +26,29 @@ class HomeLayoutNotifier extends AsyncNotifier<HomeLayoutConfig> {
   Future<HomeLayoutConfig> build() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kPrefsHomeLayout);
+    HomeLayoutConfig config;
     if (raw == null || raw.trim().isEmpty) {
-      return kDefaultHomeLayoutConfig;
-    }
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is Map<String, dynamic>) {
-        final config = HomeLayoutConfig.fromJson(decoded);
-        if (config.items.isNotEmpty) return config;
+      config = kDefaultHomeLayoutConfig;
+    } else {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          final parsed = HomeLayoutConfig.fromJson(decoded);
+          config =
+              parsed.items.isNotEmpty ? parsed : kDefaultHomeLayoutConfig;
+        } else {
+          config = kDefaultHomeLayoutConfig;
+        }
+      } catch (_) {
+        config = kDefaultHomeLayoutConfig;
       }
-    } catch (_) {}
-    return kDefaultHomeLayoutConfig;
+    }
+
+    final merged = mergeMissingDefaultFeatureCards(config);
+    if (!homeLayoutItemsEquivalent(config.items, merged.items)) {
+      await prefs.setString(_kPrefsHomeLayout, jsonEncode(merged.toJson()));
+    }
+    return merged;
   }
 
   Future<void> _persist(HomeLayoutConfig config) async {

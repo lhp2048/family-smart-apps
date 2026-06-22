@@ -4,9 +4,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../data/family_api_client.dart';
 import '../data/dashboard_life_menu_catalog.dart';
 import '../data/dashboard_prototype_models.dart';
-import '../data/family_api_client.dart';
+import '../data/home_card_preview_models.dart';
 import '../layout/home_layout_defaults.dart';
 import '../layout/home_layout_edit_mode_provider.dart';
 import '../layout/home_layout_models.dart';
@@ -15,6 +19,7 @@ import '../layout/home_layout_renderer.dart';
 import '../providers/dashboard_home_title_provider.dart';
 import '../providers/dashboard_remote_providers.dart';
 import '../providers/family_api_base_url_provider.dart';
+import '../providers/home_card_preview_providers.dart';
 import '../../../core/mock/mock_data_notifier.dart';
 import '../../../shared/providers/task_ui_providers.dart';
 import 'home_layout_edit_chrome.dart';
@@ -139,60 +144,43 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   Widget build(BuildContext context) {
     final mock = ref.watch(mockDataNotifierProvider);
     final configured = ref.watch(familyApiIsConfiguredProvider);
-    final homeworkAsync = ref.watch(dashboardHomeworkRowsProvider);
-    final pointsAsync = ref.watch(dashboardPointsRowsProvider);
-    final lifeMenuAsync = ref.watch(dashboardLifeMenuItemsProvider);
     final layoutAsync = ref.watch(homeLayoutConfigProvider);
     final isEditing = ref.watch(homeLayoutEditModeProvider);
     final homeTitle = ref.watch(dashboardHomeTitleProvider).valueOrNull ??
         DashboardHomeTitleNotifier.kDefaultTitle;
-
-    final lifeMenuItems = lifeMenuAsync.when(
-      data: (v) => v,
-      loading: () =>
-          configured ? kDashboardLifeMenuTemplate : mock.dashboardLifeMenu,
-      error: (_, _) =>
-          configured ? kDashboardLifeMenuTemplate : mock.dashboardLifeMenu,
-    );
 
     final layoutConfig =
         layoutAsync.valueOrNull ?? kDefaultHomeLayoutConfig;
     final visibleItems = layoutConfig.visibleItems;
     final hiddenItems = layoutConfig.hiddenItems;
 
-    Future<void> onPullRefresh() async {
-      ref.invalidate(dashboardHomeworkRowsProvider);
-      ref.invalidate(dashboardPointsRowsProvider);
-      ref.invalidate(dashboardLifeMenuItemsProvider);
-      ref.read(taskRemoteRefreshProvider.notifier).state++;
-      await Future.wait([
-        ref.read(dashboardHomeworkRowsProvider.future),
-        ref.read(dashboardPointsRowsProvider.future),
-        ref.read(dashboardLifeMenuItemsProvider.future),
-      ]);
+    final bizDate = ref.watch(dashboardHomeworkBizDateProvider);
+    final period = ref.watch(dashboardPointsPeriodProvider);
+    final previewKeys = previewKeysForVisibleFeatures(
+      visibleItems,
+      bizDate: bizDate,
+      periodStart: period.periodStart,
+      periodEnd: period.periodEnd,
+    );
+
+    final previewAsyncByKey = <String, AsyncValue<HomeCardPreview>>{};
+    for (final key in previewKeys) {
+      previewAsyncByKey[key.cacheKey] = ref.watch(homeCardPreviewProvider(key));
     }
 
-    final homeworkRows = homeworkAsync.when(
-      data: (rows) =>
-          rows.isEmpty ? const [DashboardHomeworkRow('未配置', '—')] : rows,
-      loading: () => const [DashboardHomeworkRow('加载中', '…')],
-      error: (e, _) => [DashboardHomeworkRow('作业卡片', shortDashboardError(e))],
-    );
-    final pointsRows = pointsAsync.when(
-      data: (rows) =>
-          rows.isEmpty ? const [DashboardPointsRow('未配置', 0)] : rows,
-      loading: () => const [DashboardPointsRow('加载中', 0)],
-      error: (e, _) => const [DashboardPointsRow('—', 0)],
-    );
+    Future<void> onPullRefresh() async {
+      ref.read(homeCardPreviewRefreshProvider.notifier).state++;
+      ref.read(taskRemoteRefreshProvider.notifier).state++;
+      await Future.wait(
+        previewKeys.map((k) => ref.read(homeCardPreviewProvider(k).future)),
+      );
+    }
 
     final renderData = HomeLayoutRenderData(
-      homeworkRows: homeworkRows,
-      pointsRows: pointsRows,
-      pointsErrorSubtitle: pointsAsync.hasError && pointsAsync.error != null
-          ? shortDashboardError(pointsAsync.error!)
-          : null,
+      previewAsyncByKey: previewAsyncByKey,
       menuByRoute: buildMenuByRoute(
-        lifeMenuItems: lifeMenuItems,
+        lifeMenuItems:
+            configured ? kDashboardLifeMenuTemplate : mock.dashboardLifeMenu,
         systemMenuItems: mock.dashboardSystemMenu,
       ),
       onEnterEditMode: _enterLayoutEditMode,

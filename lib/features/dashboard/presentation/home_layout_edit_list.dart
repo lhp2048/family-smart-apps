@@ -6,7 +6,7 @@ import '../layout/home_layout_provider.dart';
 import '../layout/home_layout_renderer.dart';
 import 'home_layout_editable_tile.dart';
 
-/// 编辑态：与浏览态相同的流式排版（摘要可并排），每项带 overlay；支持拖拽排序。
+/// 编辑态：与浏览态相同的流式排版（中号可并排），每项带 overlay；支持拖拽排序。
 class HomeLayoutEditList extends ConsumerStatefulWidget {
   const HomeLayoutEditList({
     super.key,
@@ -115,7 +115,7 @@ class _HomeLayoutEditListState extends ConsumerState<HomeLayoutEditList> {
     bool outerPadding = true,
   }) {
     final notifier = ref.read(homeLayoutConfigProvider.notifier);
-    final borderRadius = item.size == HomeCardSize.entry ? 20.0 : 18.0;
+    final borderRadius = item.size.isSmall ? 16.0 : 18.0;
     return _wrapDropTarget(
       listIndex,
       HomeLayoutEditableTile(
@@ -129,8 +129,9 @@ class _HomeLayoutEditListState extends ConsumerState<HomeLayoutEditList> {
           _setDragging(null);
           setState(() => _dropTargetIndex = null);
         },
-        featureToolbar: HomeFeatureEditToolbar(
+        featureToolbarBuilder: (tileWidth) => HomeFeatureEditToolbar(
           size: item.size,
+          availableWidth: tileWidth,
           onSelectSize: (size) => notifier.toggleFeatureSize(item.itemId, size),
           onHide: () => notifier.setFeatureHidden(item.itemId, true),
         ),
@@ -193,7 +194,7 @@ class _HomeLayoutEditListState extends ConsumerState<HomeLayoutEditList> {
         continue;
       }
 
-      if (item.size == HomeCardSize.entry) {
+      if (item.size.isLarge) {
         final content = buildSingleLayoutItem(
           context: context,
           item: item,
@@ -206,7 +207,28 @@ class _HomeLayoutEditListState extends ConsumerState<HomeLayoutEditList> {
         continue;
       }
 
-      final pair = nextSummaryFeaturePair(visibleItems, i);
+      if (item.size.isSmall) {
+        final run = nextSmallFeatureRun(visibleItems, i);
+        out.add(
+          buildSmallCardsRow(
+            context: context,
+            run: run,
+            data: widget.data,
+            separatorIndexBefore: separatorCount,
+            startListIndex: i,
+            wrapChild: (listIndex, child) => _wrapFeature(
+              visibleItems[listIndex] as HomeFeatureLayoutItem,
+              listIndex,
+              child,
+              outerPadding: false,
+            ),
+          ),
+        );
+        i += run.length;
+        continue;
+      }
+
+      final pair = nextMediumFeaturePair(visibleItems, i);
       if (pair.length == 2) {
         out.add(
           Padding(

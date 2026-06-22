@@ -16,7 +16,7 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 HOST="${HOST:-0.0.0.0}"
-PORT="${PORT:-18024}"
+PORT="${PORT:-18027}"
 
 cd "${APP_ROOT}"
-exec python3 -m http.server "${PORT}" --bind "${HOST}"
+exec python3 "${SCRIPT_DIR}/serve_web.py" "${PORT}" "${HOST}"

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/calendar/presentation/calendar_page.dart';
 import '../features/dashboard/presentation/dashboard_page.dart';
 import '../features/english_bonus/presentation/english_bonus_page.dart';
 import '../features/english_bonus/presentation/syllable_practice_page.dart';
@@ -11,6 +12,9 @@ import '../features/debate/presentation/debate_page.dart';
 import '../features/extracurricular/presentation/extracurricular_page.dart';
 import '../features/voice/presentation/voice_history_chat_page.dart';
 import '../features/points/presentation/points_page.dart';
+import '../features/shopping/presentation/shopping_item_detail_page.dart';
+import '../features/shopping/presentation/shopping_list_page.dart';
+import '../features/shopping/presentation/shopping_price_compare_page.dart';
 import '../features/tasks/presentation/tasks_page.dart';
 import '../features/timemachine/presentation/timemachine_page.dart';
 import '../features/wishwall/presentation/wishwall_page.dart';
@@ -36,6 +40,11 @@ GoRouter createAppRouter() {
         path: '/points',
         name: 'points',
         builder: (context, state) => const PointsPage(),
+      ),
+      GoRoute(
+        path: '/calendar',
+        name: 'calendar',
+        builder: (context, state) => const CalendarPage(),
       ),
       GoRoute(
         path: '/wishwall',
@@ -91,6 +100,24 @@ GoRouter createAppRouter() {
         path: '/settings',
         name: 'settings',
         builder: (context, state) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: '/shopping',
+        name: 'shopping',
+        builder: (context, state) => const ShoppingListPage(),
+      ),
+      GoRoute(
+        path: '/shopping/item/:itemId',
+        name: 'shoppingItem',
+        builder: (context, state) {
+          final id = state.pathParameters['itemId'] ?? '';
+          return ShoppingItemDetailPage(itemId: id);
+        },
+      ),
+      GoRoute(
+        path: '/shopping/compare',
+        name: 'shoppingCompare',
+        builder: (context, state) => const ShoppingPriceComparePage(),
       ),
     ],
   );

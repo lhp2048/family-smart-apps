@@ -43,6 +43,15 @@ const kHomeCardCatalog = <HomeCardCatalogEntry>[
     supportsFatSummary: true,
   ),
   HomeCardCatalogEntry(
+    cardId: 'calendar',
+    title: '家庭日历',
+    subtitle: '今日作业 · 积分 · 行程与提醒',
+    icon: Icons.calendar_month_rounded,
+    iconBackground: Color(0xFF7986CB),
+    route: '/calendar',
+    supportsFatSummary: true,
+  ),
+  HomeCardCatalogEntry(
     cardId: 'wishwall',
     title: '心愿墙',
     subtitle: '许下心愿 · 美好期待',
@@ -81,6 +90,14 @@ const kHomeCardCatalog = <HomeCardCatalogEntry>[
     icon: Icons.auto_stories_rounded,
     iconBackground: Color(0xFFEF9A9A),
     route: '/extra-curricular',
+  ),
+  HomeCardCatalogEntry(
+    cardId: 'shopping',
+    title: '购物清单',
+    subtitle: '待买商品 · 价格走势',
+    icon: Icons.shopping_bag_outlined,
+    iconBackground: Color(0xFFFFAB91),
+    route: '/shopping',
   ),
   HomeCardCatalogEntry(
     cardId: 'settings',

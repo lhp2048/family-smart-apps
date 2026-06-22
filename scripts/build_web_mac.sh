@@ -13,8 +13,16 @@ fi
 
 flutter pub get
 dart run tool/generate_build_stamp.dart
-flutter build web --release --base-href=/app/
+flutter build web --release --base-href=/ --pwa-strategy=none
 
-echo ""
+mkdir -p "${APP_ROOT}/build/web/scripts"
+cp "${APP_ROOT}/deploy/mac/"*.sh "${APP_ROOT}/build/web/scripts/"
+cp "${APP_ROOT}/deploy/mac/serve_web.py" "${APP_ROOT}/build/web/scripts/serve_web.py"
+cp "${APP_ROOT}/deploy/web/flutter_service_worker_uninstall.js" "${APP_ROOT}/build/web/flutter_service_worker.js"
+cp "${APP_ROOT}/deploy/mac/INSTALL.txt" "${APP_ROOT}/build/web/INSTALL.txt"
+chmod +x "${APP_ROOT}/build/web/scripts/"*.sh 2>/dev/null || true
+
 echo "构建完成: ${APP_ROOT}/build/web"
-echo "启动静态站: ./scripts/serve_web_mac.sh"
+echo "打包 zip: ./scripts/pack_web_mac.sh  ->  dist_out/family_smart_apps_web.zip"
+echo "一键构建打包: ./scripts/build_and_pack_mac.sh"
+echo "本地预览: ./scripts/serve_web_mac.sh"

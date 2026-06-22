@@ -5,12 +5,17 @@ HomeLayoutConfig get kDefaultHomeLayoutConfig => const HomeLayoutConfig(
         HomeFeatureLayoutItem(
           itemId: 'feat-homework',
           cardId: 'homework',
-          size: HomeCardSize.summary,
+          size: HomeCardSize.medium,
         ),
         HomeFeatureLayoutItem(
           itemId: 'feat-points',
           cardId: 'points',
-          size: HomeCardSize.summary,
+          size: HomeCardSize.medium,
+        ),
+        HomeFeatureLayoutItem(
+          itemId: 'feat-calendar',
+          cardId: 'calendar',
+          size: HomeCardSize.medium,
         ),
         HomeSeparatorLayoutItem(
           itemId: 'sep-life',
@@ -19,27 +24,32 @@ HomeLayoutConfig get kDefaultHomeLayoutConfig => const HomeLayoutConfig(
         HomeFeatureLayoutItem(
           itemId: 'feat-wishwall',
           cardId: 'wishwall',
-          size: HomeCardSize.entry,
+          size: HomeCardSize.small,
         ),
         HomeFeatureLayoutItem(
           itemId: 'feat-timemachine',
           cardId: 'timemachine',
-          size: HomeCardSize.entry,
+          size: HomeCardSize.small,
         ),
         HomeFeatureLayoutItem(
           itemId: 'feat-debate',
           cardId: 'debate',
-          size: HomeCardSize.entry,
+          size: HomeCardSize.small,
         ),
         HomeFeatureLayoutItem(
           itemId: 'feat-english-bonus',
           cardId: 'english-bonus',
-          size: HomeCardSize.entry,
+          size: HomeCardSize.small,
         ),
         HomeFeatureLayoutItem(
           itemId: 'feat-extracurricular',
           cardId: 'extracurricular',
-          size: HomeCardSize.entry,
+          size: HomeCardSize.small,
+        ),
+        HomeFeatureLayoutItem(
+          itemId: 'feat-shopping',
+          cardId: 'shopping',
+          size: HomeCardSize.small,
         ),
         HomeSeparatorLayoutItem(
           itemId: 'sep-system',
@@ -48,7 +58,7 @@ HomeLayoutConfig get kDefaultHomeLayoutConfig => const HomeLayoutConfig(
         HomeFeatureLayoutItem(
           itemId: 'feat-settings',
           cardId: 'settings',
-          size: HomeCardSize.entry,
+          size: HomeCardSize.small,
         ),
       ],
     );
