@@ -226,6 +226,7 @@ class MockAppState {
           ..bizDate = bd
           ..weekday = weekdayCn(d)
           ..hasReward = false
+          ..allDone = false
           ..updatedAt = now,
       );
     }
@@ -296,6 +297,7 @@ class MockAppState {
         });
       }
       dates[i].hasReward = fully;
+      dates[i].allDone = fully;
     }
 
     final summaries = <String, HomeSummaryEntity>{};

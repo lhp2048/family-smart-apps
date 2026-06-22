@@ -101,6 +101,7 @@ Future<void> _seedTaskDates(Isar isar, DateTime now) async {
         ..bizDate = bd
         ..weekday = weekdayCn(d)
         ..hasReward = i == 0
+        ..allDone = i == 0
         ..updatedAt = now,
     );
   }

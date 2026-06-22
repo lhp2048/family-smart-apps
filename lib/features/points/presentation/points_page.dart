@@ -23,22 +23,22 @@ class PointsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cyclesAsync = ref.watch(pointsWeekCyclesAsyncProvider);
+    final shellsAsync = ref.watch(pointsWeekShellsAsyncProvider);
     final rulesAsync = ref.watch(pointsRulesAsyncProvider);
     final selectedId = ref.watch(selectedPointsWeekIdProvider);
     final membersAsync = ref.watch(pointsMembersAsyncProvider);
 
-    ref.listen(pointsWeekCyclesAsyncProvider, (prev, next) {
-      next.whenData((cycles) {
-        if (cycles.isEmpty) return;
+    ref.listen(pointsWeekShellsAsyncProvider, (prev, next) {
+      next.whenData((shells) {
+        if (shells.isEmpty) return;
         final sel = ref.read(selectedPointsWeekIdProvider);
-        final ok = cycles.any((c) => c.id == sel);
+        final ok = shells.any((c) => c.id == sel);
         if (!ok) {
-          PointsWeekCycle pick;
+          PointsWeekShell pick;
           try {
-            pick = cycles.firstWhere((c) => c.isCurrentWeek);
+            pick = shells.firstWhere((c) => c.isCurrentWeek);
           } catch (_) {
-            pick = cycles.first;
+            pick = shells.first;
           }
           ref.read(selectedPointsWeekIdProvider.notifier).state = pick.id;
         }
@@ -46,125 +46,103 @@ class PointsPage extends ConsumerWidget {
     });
 
     Widget body() {
-      return membersAsync.when(
+      return shellsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text(
-            '成员加载失败：$e',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              '积分榜加载失败：$e',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+              ),
             ),
           ),
         ),
-        data: (members) => cyclesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+        data: (shells) {
+          if (shells.isEmpty) {
+            return Center(
               child: Text(
-                '积分榜加载失败：$e',
-                textAlign: TextAlign.center,
+                '暂无积分数据',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.5),
                 ),
               ),
-            ),
-          ),
-          data: (cycles) => rulesAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  '积分规则加载失败：$e',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-            ),
-            data: (rules) {
-              if (cycles.isEmpty) {
-                return Center(
-                  child: Text(
-                    '暂无积分数据',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
+            );
+          }
+          final members = membersAsync.valueOrNull ?? const <MemberEntity>[];
+          final rules = rulesAsync.valueOrNull ?? const <PointsRuleLine>[];
+          return LayoutBuilder(
+            builder: (context, c) {
+              final wide = c.maxWidth >= 720;
+              if (wide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      width: 148,
+                      child: _WeekSidebar(
+                        shells: shells,
+                        selectedId: selectedId,
+                        children: members,
+                        onSelect: (id) {
+                          ref
+                              .read(selectedPointsWeekIdProvider.notifier)
+                              .state = id;
+                        },
+                      ),
                     ),
-                  ),
+                    VerticalDivider(
+                      width: 1,
+                      thickness: 1,
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                    Expanded(
+                      child: _PointsWeekSwipePanel(
+                        shells: shells,
+                        rules: rules,
+                        rulesLoading: rulesAsync.isLoading,
+                        children: members,
+                      ),
+                    ),
+                  ],
                 );
               }
-              return LayoutBuilder(
-                builder: (context, c) {
-                  final wide = c.maxWidth >= 720;
-                  if (wide) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          width: 148,
-                          child: _WeekSidebar(
-                            cycles: cycles,
-                            selectedId: selectedId,
-                            children: members,
-                            onSelect: (id) {
-                              ref
-                                  .read(selectedPointsWeekIdProvider.notifier)
-                                  .state = id;
-                            },
-                          ),
-                        ),
-                        VerticalDivider(
-                          width: 1,
-                          thickness: 1,
-                          color: Colors.white.withValues(alpha: 0.08),
-                        ),
-                        Expanded(
-                          child: _PointsWeekSwipePanel(
-                            cycles: cycles,
-                            rules: rules,
-                            children: members,
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SizedBox(
-                        height: 96,
-                        child: _WeekSidebar(
-                          cycles: cycles,
-                          selectedId: selectedId,
-                          children: members,
-                          horizontal: true,
-                          onSelect: (id) {
-                            ref
-                                .read(selectedPointsWeekIdProvider.notifier)
-                                .state = id;
-                          },
-                        ),
-                      ),
-                      Divider(
-                        height: 1,
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                      Expanded(
-                        child: _PointsWeekSwipePanel(
-                          cycles: cycles,
-                          rules: rules,
-                          children: members,
-                        ),
-                      ),
-                    ],
-                  );
-                },
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: 96,
+                    child: _WeekSidebar(
+                      shells: shells,
+                      selectedId: selectedId,
+                      children: members,
+                      horizontal: true,
+                      onSelect: (id) {
+                        ref
+                            .read(selectedPointsWeekIdProvider.notifier)
+                            .state = id;
+                      },
+                    ),
+                  ),
+                  Divider(
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                  Expanded(
+                    child: _PointsWeekSwipePanel(
+                      shells: shells,
+                      rules: rules,
+                      rulesLoading: rulesAsync.isLoading,
+                      children: members,
+                    ),
+                  ),
+                ],
               );
             },
-          ),
-        ),
+          );
+        },
       );
     }
 
@@ -198,13 +176,15 @@ class PointsPage extends ConsumerWidget {
 
 class _PointsWeekSwipePanel extends ConsumerStatefulWidget {
   const _PointsWeekSwipePanel({
-    required this.cycles,
+    required this.shells,
     required this.rules,
+    required this.rulesLoading,
     required this.children,
   });
 
-  final List<PointsWeekCycle> cycles;
+  final List<PointsWeekShell> shells;
   final List<PointsRuleLine> rules;
+  final bool rulesLoading;
   final List<MemberEntity> children;
 
   @override
@@ -217,7 +197,7 @@ class _PointsWeekSwipePanelState extends ConsumerState<_PointsWeekSwipePanel> {
 
   int _indexForSelected() {
     final id = ref.read(selectedPointsWeekIdProvider);
-    final i = widget.cycles.indexWhere((c) => c.id == id);
+    final i = widget.shells.indexWhere((c) => c.id == id);
     return i >= 0 ? i : 0;
   }
 
@@ -230,9 +210,9 @@ class _PointsWeekSwipePanelState extends ConsumerState<_PointsWeekSwipePanel> {
   @override
   void didUpdateWidget(covariant _PointsWeekSwipePanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.cycles.length != widget.cycles.length &&
+    if (oldWidget.shells.length != widget.shells.length &&
         _pageController.hasClients) {
-      final i = _indexForSelected().clamp(0, widget.cycles.length - 1);
+      final i = _indexForSelected().clamp(0, widget.shells.length - 1);
       _pageController.jumpToPage(i);
     }
   }
@@ -245,10 +225,10 @@ class _PointsWeekSwipePanelState extends ConsumerState<_PointsWeekSwipePanel> {
 
   @override
   Widget build(BuildContext context) {
-    final cycles = widget.cycles;
+    final shells = widget.shells;
 
     ref.listen<String>(selectedPointsWeekIdProvider, (previous, next) {
-      final i = cycles.indexWhere((c) => c.id == next);
+      final i = shells.indexWhere((c) => c.id == next);
       if (i < 0 || !_pageController.hasClients) return;
       final page = _pageController.page;
       if (page == null) return;
@@ -263,14 +243,15 @@ class _PointsWeekSwipePanelState extends ConsumerState<_PointsWeekSwipePanel> {
 
     return PageView.builder(
       controller: _pageController,
-      itemCount: cycles.length,
+      itemCount: shells.length,
       onPageChanged: (i) {
-        ref.read(selectedPointsWeekIdProvider.notifier).state = cycles[i].id;
+        ref.read(selectedPointsWeekIdProvider.notifier).state = shells[i].id;
       },
       itemBuilder: (context, i) {
         return _PointsMainContent(
-          week: cycles[i],
+          shell: shells[i],
           rules: widget.rules,
+          rulesLoading: widget.rulesLoading,
           children: widget.children,
         );
       },
@@ -280,14 +261,14 @@ class _PointsWeekSwipePanelState extends ConsumerState<_PointsWeekSwipePanel> {
 
 class _WeekSidebar extends ConsumerStatefulWidget {
   const _WeekSidebar({
-    required this.cycles,
+    required this.shells,
     required this.selectedId,
     required this.children,
     required this.onSelect,
     this.horizontal = false,
   });
 
-  final List<PointsWeekCycle> cycles;
+  final List<PointsWeekShell> shells;
   final String selectedId;
   final List<MemberEntity> children;
   final void Function(String id) onSelect;
@@ -331,10 +312,10 @@ class _WeekSidebarState extends ConsumerState<_WeekSidebar> {
 
   @override
   Widget build(BuildContext context) {
-    final cycles = widget.cycles;
+    final shells = widget.shells;
     final horizontal = widget.horizontal;
 
-    Widget miniScores(PointsWeekCycle c) {
+    Widget miniScores(PointsWeekShell c) {
       final ch = widget.children;
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -358,7 +339,7 @@ class _WeekSidebarState extends ConsumerState<_WeekSidebar> {
     }
 
     Widget tile(int index) {
-      final c = cycles[index];
+      final c = shells[index];
       final sel = c.id == widget.selectedId;
       return Padding(
         key: sel ? _selectedVisibleKey : ValueKey<String>('pointsWeek_${c.id}'),
@@ -480,32 +461,83 @@ class _WeekSidebarState extends ConsumerState<_WeekSidebar> {
       return ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        itemCount: cycles.length,
+        itemCount: shells.length,
         itemBuilder: (context, i) => tile(i),
       );
     }
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
-      itemCount: cycles.length,
+      itemCount: shells.length,
       itemBuilder: (context, i) => tile(i),
     );
   }
 }
 
-class _PointsMainContent extends StatelessWidget {
+class _PointsMainContent extends ConsumerWidget {
   const _PointsMainContent({
-    required this.week,
+    required this.shell,
     required this.rules,
+    required this.rulesLoading,
     required this.children,
   });
 
-  final PointsWeekCycle week;
+  final PointsWeekShell shell;
   final List<PointsRuleLine> rules;
+  final bool rulesLoading;
   final List<MemberEntity> children;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detailAsync = ref.watch(pointsWeekDetailAsyncProvider(shell.id));
+
+    Widget detailSection() {
+      return detailAsync.when(
+        loading: () => const Padding(
+          padding: EdgeInsets.symmetric(vertical: 32),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (e, _) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Center(
+            child: Text(
+              '明细加载失败：$e',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.4),
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+        data: (detail) {
+          if (detail.dailyLogs.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  '该周期暂无流水记录',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            );
+          }
+          return Column(
+            children: detail.dailyLogs
+                .map(
+                  (g) => Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: _DayLogCard(group: g, children: children),
+                  ),
+                )
+                .toList(),
+          );
+        },
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
       children: [
@@ -514,7 +546,7 @@ class _PointsMainContent extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                week.rangeTitleLong,
+                shell.rangeTitleLong,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -522,7 +554,7 @@ class _PointsMainContent extends StatelessWidget {
                 ),
               ),
             ),
-            if (week.isCurrentWeek)
+            if (shell.isCurrentWeek)
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -542,7 +574,7 @@ class _PointsMainContent extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        _WeeklySummaryCard(week: week, children: children),
+        _WeeklySummaryCard(shell: shell, children: children),
         const SizedBox(height: 22),
         Text(
           '积分明细',
@@ -553,28 +585,15 @@ class _PointsMainContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        if (week.dailyLogs.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Center(
-              child: Text(
-                '该周期暂无流水记录',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  fontSize: 14,
-                ),
-              ),
-            ),
+        detailSection(),
+        const SizedBox(height: 24),
+        if (rulesLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
           )
         else
-          ...week.dailyLogs.map(
-            (g) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: _DayLogCard(group: g, children: children),
-            ),
-          ),
-        const SizedBox(height: 24),
-        _RulesCard(rules: rules),
+          _RulesCard(rules: rules),
       ],
     );
   }
@@ -661,22 +680,22 @@ class _RulesCard extends StatelessWidget {
 
 class _WeeklySummaryCard extends StatelessWidget {
   const _WeeklySummaryCard({
-    required this.week,
+    required this.shell,
     required this.children,
   });
 
-  final PointsWeekCycle week;
+  final PointsWeekShell shell;
   final List<MemberEntity> children;
 
   @override
   Widget build(BuildContext context) {
-    final title = week.isCurrentWeek ? '本周总积分' : '该周总积分';
-    final codesFromWeek = week.totalsByMemberCode.keys.toList()..sort();
+    final title = shell.isCurrentWeek ? '本周总积分' : '该周总积分';
+    final codesFromWeek = shell.totalsByMemberCode.keys.toList()..sort();
     final ordered = <MemberEntity>[];
     final seen = <String>{};
     for (final c in children) {
-      if (week.totalsByMemberCode.containsKey(c.memberCode)) {
-        final dn = week.displayNameByMemberCode[c.memberCode];
+      if (shell.totalsByMemberCode.containsKey(c.memberCode)) {
+        final dn = shell.displayNameByMemberCode[c.memberCode];
         if (dn != null && dn.isNotEmpty && dn != c.name) {
           ordered.add(
             MemberEntity()
@@ -697,7 +716,7 @@ class _WeeklySummaryCard extends StatelessWidget {
     final now = DateTime.now();
     for (final code in codesFromWeek) {
       if (seen.contains(code)) continue;
-      final label = week.displayNameByMemberCode[code];
+      final label = shell.displayNameByMemberCode[code];
       ordered.add(
         MemberEntity()
           ..memberCode = code
@@ -758,8 +777,8 @@ class _WeeklySummaryCard extends StatelessWidget {
                 Expanded(
                   child: _ChildWeekColumn(
                     member: ordered[i],
-                    total: week.totalsByMemberCode[ordered[i].memberCode] ?? 0,
-                    net: week.netGainByMemberCode[ordered[i].memberCode] ?? 0,
+                    total: shell.totalsByMemberCode[ordered[i].memberCode] ?? 0,
+                    net: shell.netGainByMemberCode[ordered[i].memberCode] ?? 0,
                   ),
                 ),
               ],

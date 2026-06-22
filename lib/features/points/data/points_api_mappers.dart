@@ -509,7 +509,112 @@ Future<List<Map<String, dynamic>>> fetchPointsRecordsForPeriod(
   return merged;
 }
 
-/// 远程积分榜：周列表 + 每周汇总与流水（与 `后台API需求说明.md` §3.4 一致）
+/// 远程积分榜：周列表 + 并行 summary（侧栏用，不拉 records）
+Future<List<PointsWeekShell>> fetchPointsWeekShellsRemote(
+  FamilyApiClient client, {
+  DateTime? now,
+}) async {
+  final anchor = now ?? DateTime.now();
+  final current = currentWeekPeriodStrings(anchor);
+  final weeksData = await client.fetchPointsWeeks();
+  final rawWeeks = pointsWeeksListFromData(weeksData);
+  final merged = mergePointsWeeksFromApi(rawWeeks, current);
+
+  final shells = await Future.wait(
+    merged.map((meta) async {
+      final summaryData = await client.fetchPointsSummary(
+        periodStart: meta.periodStart,
+        periodEnd: meta.periodEnd,
+      );
+      final parsed = parsePointsSummaryMembers(
+        pointsSummaryListFromData(summaryData),
+      );
+      final isCur =
+          meta.periodStart == current.periodStart &&
+          meta.periodEnd == current.periodEnd;
+      return PointsWeekShell(
+        id: pointsWeekCycleId(meta.periodStart, meta.periodEnd),
+        periodStart: meta.periodStart,
+        periodEnd: meta.periodEnd,
+        rangeShort: pointsRangeShortPreferLabel(
+          meta.label,
+          meta.periodStart,
+          meta.periodEnd,
+        ),
+        rangeTitleLong: pointsRangeTitleLongFromPeriod(
+          meta.periodStart,
+          meta.periodEnd,
+        ),
+        isCurrentWeek: isCur,
+        totalsByMemberCode: parsed.totalsByMemberCode,
+        netGainByMemberCode: parsed.netGainByMemberCode,
+        displayNameByMemberCode: parsed.displayNameByMemberCode,
+      );
+    }),
+  );
+  return shells;
+}
+
+/// 单周积分明细（选中周 / PageView 可见周时拉取）
+Future<PointsWeekDetail> fetchPointsWeekDetailRemote(
+  FamilyApiClient client,
+  PointsWeekShell shell,
+) async {
+  final childSeed = await fetchPointsMemberCodes(client);
+  var participantCodes = Set<String>.from(childSeed.codes);
+  final displayNames = Map<String, String>.from(childSeed.displayNames);
+  displayNames.addAll(shell.displayNameByMemberCode);
+
+  var allRecords = await fetchPointsRecordsForPeriod(
+    client,
+    shell.periodStart,
+    shell.periodEnd,
+    participantCodes,
+  );
+  allRecords = dedupePointsRecords(allRecords);
+  for (final r in allRecords) {
+    final mc = r['memberCode']?.toString() ?? '';
+    if (mc.isNotEmpty) participantCodes.add(mc);
+  }
+
+  final computed = computePointsSummaryFromRecords(
+    allRecords,
+    participantCodes,
+    displayNames,
+  );
+  final daily = groupPointsRecordsByBizDate(
+    allRecords,
+    participantCodes,
+    computed.displayNameByMemberCode,
+  );
+  return PointsWeekDetail(
+    dailyLogs: daily,
+    displayNameByMemberCode: computed.displayNameByMemberCode,
+  );
+}
+
+PointsWeekShell pointsWeekShellFromCycle(PointsWeekCycle cycle) {
+  return PointsWeekShell(
+    id: cycle.id,
+    periodStart: cycle.periodStart,
+    periodEnd: cycle.periodEnd,
+    rangeShort: cycle.rangeShort,
+    rangeTitleLong: cycle.rangeTitleLong,
+    isCurrentWeek: cycle.isCurrentWeek,
+    totalsByMemberCode: cycle.totalsByMemberCode,
+    netGainByMemberCode: cycle.netGainByMemberCode,
+    displayNameByMemberCode: cycle.displayNameByMemberCode,
+  );
+}
+
+PointsWeekDetail pointsWeekDetailFromCycle(PointsWeekCycle cycle) {
+  return PointsWeekDetail(
+    dailyLogs: cycle.dailyLogs,
+    displayNameByMemberCode: cycle.displayNameByMemberCode,
+  );
+}
+
+/// @deprecated 全量拉取所有周明细；请用 [fetchPointsWeekShellsRemote] + [fetchPointsWeekDetailRemote]
 Future<List<PointsWeekCycle>> fetchPointsWeekCyclesRemote(
   FamilyApiClient client, {
   DateTime? now,
@@ -553,6 +658,8 @@ Future<List<PointsWeekCycle>> fetchPointsWeekCyclesRemote(
     cycles.add(
       PointsWeekCycle(
         id: pointsWeekCycleId(meta.periodStart, meta.periodEnd),
+        periodStart: meta.periodStart,
+        periodEnd: meta.periodEnd,
         rangeShort: pointsRangeShortPreferLabel(
           meta.label,
           meta.periodStart,

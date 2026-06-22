@@ -257,6 +257,8 @@ TaskDateEntity taskDateFromApiMap(Map<String, dynamic> m) {
   e.weekday = m['weekday']?.toString() ?? '';
   final hr = m['hasReward'];
   e.hasReward = hr == true || hr == 1 || hr == '1' || hr == 'true';
+  final ad = m['allDone'];
+  e.allDone = ad == true || ad == 1 || ad == '1' || ad == 'true';
   e.updatedAt = _parseUpdatedAt(m['updatedAt']) ?? DateTime.now();
   return e;
 }

@@ -13,5 +13,7 @@ class TaskDateEntity {
 
   late bool hasReward;
 
+  late bool allDone;
+
   late DateTime updatedAt;
 }

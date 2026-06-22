@@ -57,6 +57,74 @@ TimemachineMonthChip timemachineMonthChipFromApiMap(Map<String, dynamic> m) {
   );
 }
 
+TimemachineSidebarDay timemachineSidebarDayFromApiMap(Map<String, dynamic> m) {
+  final bd = m['bizDate']?.toString() ?? '';
+  final labelRaw = m['label']?.toString();
+  final label = (labelRaw != null && labelRaw.isNotEmpty)
+      ? labelRaw
+      : bd;
+  final count = (m['entryCount'] as num?)?.toInt() ?? 0;
+  return TimemachineSidebarDay(
+    bizDate: bd,
+    label: label,
+    entryCount: count,
+  );
+}
+
+Future<List<TimemachineMonthChip>> fetchTimelineMonthChipsRemote(
+  FamilyApiClient client,
+) async {
+  final chipsData = await client.fetchTimelineMonthChips();
+  final rawChips = _listFromMap(chipsData, 'list');
+  final monthChips = rawChips
+      .map(timemachineMonthChipFromApiMap)
+      .where((c) => c.monthKey.isNotEmpty)
+      .toList();
+  monthChips.sort((a, b) => b.monthKey.compareTo(a.monthKey));
+  return monthChips;
+}
+
+Future<List<TimemachineSidebarDay>> fetchTimelineSidebarDaysRemote(
+  FamilyApiClient client,
+  String monthKey,
+) async {
+  final data = await client.fetchTimelineSidebarDays(monthKey);
+  final raw = _listFromMap(data, 'list');
+  final days = raw
+      .map(timemachineSidebarDayFromApiMap)
+      .where((d) => d.bizDate.isNotEmpty)
+      .toList();
+  days.sort((a, b) => b.bizDate.compareTo(a.bizDate));
+  return days;
+}
+
+Future<List<TimemachineEntry>> fetchTimelineEntriesRemote(
+  FamilyApiClient client, {
+  String? monthKey,
+  String? bizDate,
+}) async {
+  final out = <TimemachineEntry>[];
+  const pageSize = 100;
+  var page = 1;
+  while (true) {
+    final data = await client.fetchTimelineEntries(
+      monthKey: monthKey,
+      bizDate: bizDate,
+      page: page,
+      pageSize: pageSize,
+    );
+    final maps = _listFromMap(data, 'list');
+    for (final m in maps) {
+      out.add(timemachineEntryFromApiMap(m));
+    }
+    final total = (data['total'] as num?)?.toInt() ?? out.length;
+    if (out.length >= total || maps.isEmpty) break;
+    page++;
+    if (page > 200) break;
+  }
+  return out;
+}
+
 Future<List<TimemachineEntry>> fetchAllTimelineEntriesForMonth(
   FamilyApiClient client,
   String monthKey,
@@ -82,6 +150,7 @@ Future<List<TimemachineEntry>> fetchAllTimelineEntriesForMonth(
   return out;
 }
 
+@Deprecated('Use fetchTimelineMonthChipsRemote + family providers instead')
 Future<TimemachineRemoteBundle> fetchTimemachineBundleRemote(
   FamilyApiClient client,
 ) async {

@@ -27,9 +27,21 @@ class TimemachinePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(familyApiIsConfiguredProvider)) {
-      final bundleAsync = ref.watch(timemachineBundleAsyncProvider);
-      if (bundleAsync.isLoading) {
+    final apiOn = ref.watch(familyApiIsConfiguredProvider);
+    if (apiOn) {
+      final chipsAsync = ref.watch(timemachineMonthChipsAsyncProvider);
+      ref.listen(timemachineMonthChipsAsyncProvider, (prev, next) {
+        next.whenData((chips) {
+          if (chips.isEmpty) return;
+          final curM = ref.read(timemachineSelectedMonthKeyProvider);
+          final curD = ref.read(timemachineSelectedBizDateProvider);
+          if (curM == null && curD == null) {
+            ref.read(timemachineSelectedMonthKeyProvider.notifier).state =
+                chips.first.monthKey;
+          }
+        });
+      });
+      if (chipsAsync.isLoading) {
         return Scaffold(
           backgroundColor: AppTheme.shellBackground,
           body: SafeArea(
@@ -49,7 +61,7 @@ class TimemachinePage extends ConsumerWidget {
           ),
         );
       }
-      if (bundleAsync.hasError) {
+      if (chipsAsync.hasError) {
         return Scaffold(
           backgroundColor: AppTheme.shellBackground,
           body: SafeArea(
@@ -66,7 +78,7 @@ class TimemachinePage extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Text(
-                        '时光机加载失败：${bundleAsync.error}',
+                        '时光机加载失败：${chipsAsync.error}',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.5),
@@ -83,13 +95,17 @@ class TimemachinePage extends ConsumerWidget {
       }
     }
 
-    final total = ref.watch(timemachineEntriesProvider).length;
     final months = ref.watch(timemachineSidebarMonthsProvider);
+    final total = months.fold<int>(0, (sum, m) => sum + m.entryCount);
     final secondRowDays = ref.watch(timemachineSecondRowDaysProvider);
     final feedSections = ref.watch(timemachineFeedSectionsProvider);
     final selectedDay = ref.watch(timemachineSelectedBizDateProvider);
     final selectedMonth = ref.watch(timemachineSelectedMonthKeyProvider);
     final filteredCount = ref.watch(filteredTimemachineEntriesProvider).length;
+    final query = ref.watch(timemachineActiveQueryProvider);
+    final entriesLoading = apiOn &&
+        query.hasFilter &&
+        ref.watch(timemachineEntriesAsyncProvider(query)).isLoading;
 
     final summaryPrefix = selectedDay != null
         ? '${timemachineSidebarDayLabel(selectedDay)} 的记录'
@@ -121,7 +137,6 @@ class TimemachinePage extends ConsumerWidget {
       ref.read(timemachineSelectedBizDateProvider.notifier).state = bd;
     }
 
-    final apiOn = ref.watch(familyApiIsConfiguredProvider);
     final allowWrite = apiOn && !kEffectiveReadOnlyDataMode;
 
     return Scaffold(
@@ -180,6 +195,10 @@ class TimemachinePage extends ConsumerWidget {
                           child: _FeedColumn(
                             summaryText: summaryText,
                             feedSections: feedSections,
+                            loading: entriesLoading,
+                            emptyHint: query.hasFilter
+                                ? '暂无记录'
+                                : '请选择月份或日期',
                           ),
                         ),
                       ],
@@ -207,6 +226,10 @@ class TimemachinePage extends ConsumerWidget {
                         child: _FeedColumn(
                           summaryText: summaryText,
                           feedSections: feedSections,
+                          loading: entriesLoading,
+                          emptyHint: query.hasFilter
+                              ? '暂无记录'
+                              : '请选择月份或日期',
                         ),
                       ),
                     ],
@@ -598,17 +621,24 @@ class _FeedColumn extends StatelessWidget {
   const _FeedColumn({
     required this.summaryText,
     required this.feedSections,
+    this.loading = false,
+    this.emptyHint = '暂无记录',
   });
 
   final String summaryText;
   final List<TimemachineFeedSection> feedSections;
+  final bool loading;
+  final String emptyHint;
 
   @override
   Widget build(BuildContext context) {
+    if (loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
     if (feedSections.isEmpty) {
       return Center(
         child: Text(
-          '暂无记录',
+          emptyHint,
           style: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
         ),
       );

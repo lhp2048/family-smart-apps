@@ -54,9 +54,13 @@ class PointsWeekCycle {
     required this.netGainByMemberCode,
     required this.dailyLogs,
     this.displayNameByMemberCode = const {},
+    this.periodStart = '',
+    this.periodEnd = '',
   });
 
   final String id;
+  final String periodStart;
+  final String periodEnd;
   final String rangeShort;
   final String rangeTitleLong;
   final bool isCurrentWeek;
@@ -65,5 +69,41 @@ class PointsWeekCycle {
   final Map<String, int> netGainByMemberCode;
   final List<PointsDayLogGroup> dailyLogs;
   /// 接口 `summary.list[].displayName`（可选，用于成员仅出现在汇总时的展示名）
+  final Map<String, String> displayNameByMemberCode;
+}
+
+/// 积分榜侧栏 / 周汇总（仅 summary，不含日流水）
+class PointsWeekShell {
+  const PointsWeekShell({
+    required this.id,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.rangeShort,
+    required this.rangeTitleLong,
+    required this.isCurrentWeek,
+    required this.totalsByMemberCode,
+    required this.netGainByMemberCode,
+    this.displayNameByMemberCode = const {},
+  });
+
+  final String id;
+  final String periodStart;
+  final String periodEnd;
+  final String rangeShort;
+  final String rangeTitleLong;
+  final bool isCurrentWeek;
+  final Map<String, int> totalsByMemberCode;
+  final Map<String, int> netGainByMemberCode;
+  final Map<String, String> displayNameByMemberCode;
+}
+
+/// 单周积分明细（按需加载）
+class PointsWeekDetail {
+  const PointsWeekDetail({
+    required this.dailyLogs,
+    this.displayNameByMemberCode = const {},
+  });
+
+  final List<PointsDayLogGroup> dailyLogs;
   final Map<String, String> displayNameByMemberCode;
 }

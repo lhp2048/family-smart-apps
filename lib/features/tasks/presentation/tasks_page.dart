@@ -375,7 +375,7 @@ class _HistorySidebarState extends ConsumerState<_HistorySidebar> {
       final bd = d.bizDate;
       final wd = d.weekday;
       final sel = bd == widget.selectedBizDate;
-      final allDone = ref.watch(homeworkDayAllDoneProvider(bd));
+      final allDone = d.allDone;
 
       return Padding(
         key: sel ? _selectedVisibleKey : ValueKey<String>('taskDate_$bd'),

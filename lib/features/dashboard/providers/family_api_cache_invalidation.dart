@@ -27,10 +27,12 @@ void invalidateFamilyApiCaches(WidgetRef ref) {
 
   ref.invalidate(pointsMembersAsyncProvider);
   ref.invalidate(pointsRulesAsyncProvider);
+  ref.invalidate(pointsWeekShellsAsyncProvider);
   ref.invalidate(pointsWeekCyclesAsyncProvider);
 
   ref.invalidate(wishwallItemsAsyncProvider);
   ref.invalidate(shoppingItemsAsyncProvider);
+  ref.invalidate(timemachineMonthChipsAsyncProvider);
   ref.invalidate(timemachineBundleAsyncProvider);
 
   ref.invalidate(debateRemoteDaysAsyncProvider);

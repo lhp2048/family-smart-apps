@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/mock/mock_data_notifier.dart';
@@ -10,6 +11,113 @@ import 'task_ui_providers.dart';
 
 final timemachineRemoteRefreshProvider = taskRemoteRefreshProvider;
 
+/// 时光机 entries 查询：选日优先 bizDate；仅选月用 monthKey；均为 null 时不拉取。
+@immutable
+class TimemachineQuery {
+  const TimemachineQuery({this.monthKey, this.bizDate});
+
+  final String? monthKey;
+  final String? bizDate;
+
+  bool get hasFilter =>
+      (bizDate != null && bizDate!.isNotEmpty) ||
+      (monthKey != null && monthKey!.isNotEmpty);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TimemachineQuery &&
+          runtimeType == other.runtimeType &&
+          monthKey == other.monthKey &&
+          bizDate == other.bizDate;
+
+  @override
+  int get hashCode => Object.hash(monthKey, bizDate);
+}
+
+final timemachineMonthChipsAsyncProvider =
+    FutureProvider<List<TimemachineMonthChip>>((ref) async {
+  ref.watch(timemachineRemoteRefreshProvider);
+  if (!ref.watch(familyApiIsConfiguredProvider)) {
+    final all = ref.read(mockDataNotifierProvider).timemachineEntries;
+    if (all.isEmpty) return const [];
+    final monthTotals = <String, int>{};
+    for (final e in all) {
+      if (e.bizDate.length < 7) continue;
+      final mk = e.bizDate.substring(0, 7);
+      monthTotals[mk] = (monthTotals[mk] ?? 0) + 1;
+    }
+    final keys = monthTotals.keys.toList()..sort((a, b) => b.compareTo(a));
+    return keys
+        .map(
+          (k) => TimemachineMonthChip(
+            monthKey: k,
+            label: timemachineMonthChipLabel(k),
+            entryCount: monthTotals[k]!,
+          ),
+        )
+        .toList();
+  }
+  final client = ref.watch(familyApiClientProvider);
+  return fetchTimelineMonthChipsRemote(client);
+});
+
+final timemachineSidebarDaysAsyncProvider =
+    FutureProvider.family<List<TimemachineSidebarDay>, String>(
+        (ref, monthKey) async {
+  ref.watch(timemachineRemoteRefreshProvider);
+  if (!ref.watch(familyApiIsConfiguredProvider)) {
+    final all = ref.read(mockDataNotifierProvider).timemachineEntries;
+    final byDay = <String, int>{};
+    for (final e in all) {
+      if (e.bizDate.length >= 7 && e.bizDate.substring(0, 7) == monthKey) {
+        byDay[e.bizDate] = (byDay[e.bizDate] ?? 0) + 1;
+      }
+    }
+    final ordered = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
+    return ordered
+        .map(
+          (bd) => TimemachineSidebarDay(
+            bizDate: bd,
+            label: timemachineSecondRowDayLabel(bd),
+            entryCount: byDay[bd]!,
+          ),
+        )
+        .toList();
+  }
+  final client = ref.watch(familyApiClientProvider);
+  return fetchTimelineSidebarDaysRemote(client, monthKey);
+});
+
+final timemachineEntriesAsyncProvider =
+    FutureProvider.family<List<TimemachineEntry>, TimemachineQuery>(
+        (ref, query) async {
+  ref.watch(timemachineRemoteRefreshProvider);
+  if (!query.hasFilter) return const [];
+  if (!ref.watch(familyApiIsConfiguredProvider)) {
+    final all = ref.read(mockDataNotifierProvider).timemachineEntries;
+    if (query.bizDate != null && query.bizDate!.isNotEmpty) {
+      return all.where((e) => e.bizDate == query.bizDate).toList();
+    }
+    final mk = query.monthKey;
+    if (mk != null && mk.isNotEmpty) {
+      return all
+          .where(
+            (e) => e.bizDate.length >= 7 && e.bizDate.substring(0, 7) == mk,
+          )
+          .toList();
+    }
+    return const [];
+  }
+  final client = ref.watch(familyApiClientProvider);
+  return fetchTimelineEntriesRemote(
+    client,
+    monthKey: query.bizDate == null ? query.monthKey : null,
+    bizDate: query.bizDate,
+  );
+});
+
+@Deprecated('Use timemachineMonthChipsAsyncProvider instead')
 final timemachineBundleAsyncProvider =
     FutureProvider<TimemachineRemoteBundle?>((ref) async {
   ref.watch(timemachineRemoteRefreshProvider);
@@ -22,8 +130,10 @@ final timemachineBundleAsyncProvider =
 
 final timemachineEntriesProvider = Provider<List<TimemachineEntry>>((ref) {
   if (ref.watch(familyApiIsConfiguredProvider)) {
-    final bundle = ref.watch(timemachineBundleAsyncProvider).valueOrNull;
-    return bundle?.entries ?? const [];
+    final query = ref.watch(timemachineActiveQueryProvider);
+    if (!query.hasFilter) return const [];
+    return ref.watch(timemachineEntriesAsyncProvider(query)).valueOrNull ??
+        const [];
   }
   return ref.watch(mockDataNotifierProvider).timemachineEntries;
 });
@@ -33,6 +143,18 @@ final timemachineSelectedBizDateProvider = StateProvider<String?>((ref) => null)
 
 /// `null` 表示「全部」；非空为 yyyy-MM，展示该月全部或配合选中日
 final timemachineSelectedMonthKeyProvider = StateProvider<String?>((ref) => null);
+
+final timemachineActiveQueryProvider = Provider<TimemachineQuery>((ref) {
+  final selDay = ref.watch(timemachineSelectedBizDateProvider);
+  final monthKey = ref.watch(timemachineSelectedMonthKeyProvider);
+  if (selDay != null && selDay.isNotEmpty) {
+    return TimemachineQuery(bizDate: selDay, monthKey: monthKey);
+  }
+  if (monthKey != null && monthKey.isNotEmpty) {
+    return TimemachineQuery(monthKey: monthKey);
+  }
+  return const TimemachineQuery();
+});
 
 String timemachineSidebarDayLabel(String bizDate) {
   final d = DateTime.parse(bizDate);
@@ -72,9 +194,8 @@ String timemachineCardPillLabel(String bizDate) {
 final timemachineSidebarMonthsProvider =
     Provider<List<TimemachineMonthChip>>((ref) {
   if (ref.watch(familyApiIsConfiguredProvider)) {
-    final bundle = ref.watch(timemachineBundleAsyncProvider).valueOrNull;
-    if (bundle != null) return bundle.monthChips;
-    return const [];
+    return ref.watch(timemachineMonthChipsAsyncProvider).valueOrNull ??
+        const [];
   }
 
   final all = ref.watch(timemachineEntriesProvider);
@@ -103,6 +224,10 @@ final timemachineSecondRowDaysProvider =
     Provider<List<TimemachineSidebarDay>>((ref) {
   final mk = ref.watch(timemachineSelectedMonthKeyProvider);
   if (mk == null) return [];
+  if (ref.watch(familyApiIsConfiguredProvider)) {
+    return ref.watch(timemachineSidebarDaysAsyncProvider(mk)).valueOrNull ??
+        const [];
+  }
   final all = ref.watch(timemachineEntriesProvider);
   final byDay = <String, int>{};
   for (final e in all) {
@@ -124,6 +249,12 @@ final timemachineSecondRowDaysProvider =
 
 final filteredTimemachineEntriesProvider =
     Provider<List<TimemachineEntry>>((ref) {
+  if (ref.watch(familyApiIsConfiguredProvider)) {
+    final query = ref.watch(timemachineActiveQueryProvider);
+    if (!query.hasFilter) return const [];
+    final async = ref.watch(timemachineEntriesAsyncProvider(query));
+    return async.maybeWhen(data: (d) => d, orElse: () => const []);
+  }
   final all = ref.watch(timemachineEntriesProvider);
   final selDay = ref.watch(timemachineSelectedBizDateProvider);
   final monthKey = ref.watch(timemachineSelectedMonthKeyProvider);

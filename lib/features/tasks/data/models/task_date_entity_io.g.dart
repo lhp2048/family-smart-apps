@@ -27,6 +27,11 @@ const TaskDateEntitySchema = CollectionSchema(
       name: r'hasReward',
       type: IsarType.bool,
     ),
+    r'allDone': PropertySchema(
+      id: 4,
+      name: r'allDone',
+      type: IsarType.bool,
+    ),
     r'updatedAt': PropertySchema(
       id: 2,
       name: r'updatedAt',
@@ -74,6 +79,7 @@ int _taskDateEntityEstimateSize(
   var bytesCount = offsets.last;
   bytesCount += 3 + object.bizDate.length * 3;
   bytesCount += 3 + object.weekday.length * 3;
+  bytesCount += 1;
   return bytesCount;
 }
 
@@ -87,6 +93,7 @@ void _taskDateEntitySerialize(
   writer.writeBool(offsets[1], object.hasReward);
   writer.writeDateTime(offsets[2], object.updatedAt);
   writer.writeString(offsets[3], object.weekday);
+  writer.writeBool(offsets[4], object.allDone);
 }
 
 TaskDateEntity _taskDateEntityDeserialize(
@@ -101,6 +108,7 @@ TaskDateEntity _taskDateEntityDeserialize(
   object.id = id;
   object.updatedAt = reader.readDateTime(offsets[2]);
   object.weekday = reader.readString(offsets[3]);
+  object.allDone = reader.readBool(offsets[4]);
   return object;
 }
 
@@ -119,6 +127,8 @@ P _taskDateEntityDeserializeProp<P>(
       return (reader.readDateTime(offset)) as P;
     case 3:
       return (reader.readString(offset)) as P;
+    case 4:
+      return (reader.readBool(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
