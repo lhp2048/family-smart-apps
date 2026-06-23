@@ -415,7 +415,7 @@ class HomeCalendarSummaryCard extends StatelessWidget {
                     ),
                   )
                 else
-                  ...highlights.take(cardSize.isLarge ? 6 : 3).map(
+                  ...highlights.take(cardSize.isLarge ? 8 : 3).map(
                         (h) => Padding(
                           padding: const EdgeInsets.only(bottom: 4),
                           child: Row(
@@ -601,7 +601,7 @@ class _HighlightsBody extends StatelessWidget {
         ),
       );
     }
-    final limit = cardSize.isLarge ? 6 : 3;
+    final limit = cardSize.isLarge ? 8 : 3;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
