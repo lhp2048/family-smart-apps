@@ -611,23 +611,24 @@ class _MemberHomeworkCard extends ConsumerWidget {
           const SizedBox(height: 16),
           _TableHeaderRow(),
           const SizedBox(height: 8),
-          ...items.map(
-            (item) => _TaskDataRow(
-              item: item,
-              member: member,
-              onToggle: readOnly
-                  ? null
-                  : () => _toggleHomeworkItem(
-                        ref,
-                        context,
-                        bizDate: bizDate,
-                        member: member,
-                        items: items,
-                        item: item,
-                        apiConfigured: apiConfigured,
-                      ),
-            ),
-          ),
+          ...items.asMap().entries.map(
+                (e) => _TaskDataRow(
+                  item: e.value,
+                  index: e.key,
+                  member: member,
+                  onToggle: readOnly
+                      ? null
+                      : () => _toggleHomeworkItem(
+                            ref,
+                            context,
+                            bizDate: bizDate,
+                            member: member,
+                            items: items,
+                            item: e.value,
+                            apiConfigured: apiConfigured,
+                          ),
+                ),
+              ),
         ],
       ),
     );
@@ -679,11 +680,13 @@ class _TableHeaderRow extends StatelessWidget {
 class _TaskDataRow extends StatelessWidget {
   const _TaskDataRow({
     required this.item,
+    required this.index,
     required this.member,
     required this.onToggle,
   });
 
   final TaskItemEntity item;
+  final int index;
   final MemberEntity member;
   final VoidCallback? onToggle;
 
@@ -694,60 +697,68 @@ class _TaskDataRow extends StatelessWidget {
     final done = memberTaskDoneForMember(member, st);
     final timeStr = memberTaskTimeDisplayForMember(member, at);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: _kHomeworkTableStatusWidth,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: onToggle == null
-                  ? Opacity(
-                      opacity: 0.85,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: _HomeworkDoneIndicator(done: done),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: index.isOdd
+            ? Colors.white.withValues(alpha: 0.035)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: _kHomeworkTableStatusWidth,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: onToggle == null
+                    ? Opacity(
+                        opacity: 0.85,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: _HomeworkDoneIndicator(done: done),
+                        ),
+                      )
+                    : InkWell(
+                        onTap: onToggle,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: _HomeworkDoneIndicator(done: done),
+                        ),
                       ),
-                    )
-                  : InkWell(
-                      onTap: onToggle,
-                      borderRadius: BorderRadius.circular(6),
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: _HomeworkDoneIndicator(done: done),
-                      ),
-                    ),
-            ),
-          ),
-          Expanded(
-            flex: _kHomeworkTableNameFlex,
-            child: Text(
-              item.name,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                height: 1.35,
               ),
             ),
-          ),
-          Expanded(
-            flex: _kHomeworkTableTimeFlex,
-            child: Text(
-              timeStr,
-              textAlign: TextAlign.end,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.fade,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.4),
-                fontSize: 12,
-                height: 1.35,
+            Expanded(
+              flex: _kHomeworkTableNameFlex,
+              child: Text(
+                item.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  height: 1.35,
+                ),
               ),
             ),
-          ),
-        ],
+            Expanded(
+              flex: _kHomeworkTableTimeFlex,
+              child: Text(
+                timeStr,
+                textAlign: TextAlign.end,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.fade,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
