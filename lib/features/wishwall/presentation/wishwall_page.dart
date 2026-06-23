@@ -17,9 +17,12 @@ import '../data/wishwall_prototype_models.dart';
 import '../data/wishwall_remote_write.dart';
 
 const Color _kCardBg = Color(0xFF1E222D);
+const Color _kCardBgFulfilled = Color(0xFF1A2420);
 const Color _kChipSelected = Color(0xFF7C4DFF);
 const Color _kChipUnselected = Color(0xFF2C2C3E);
 const Color _kAccentBlue = Color(0xFF2196F3);
+const Color _kWishPending = Color(0xFFFFB74D);
+const Color _kWishFulfilled = Color(0xFF66BB6A);
 
 /// 首页主标题「心愿墙」、下行为「许下心愿 · 美好期待」，箭头旁角标「未来」；本页顶栏为「未来」。
 class WishwallPage extends ConsumerWidget {
@@ -494,11 +497,18 @@ class _WishCardState extends State<_WishCard> {
           setState(() => _expanded = !_expanded);
         }
 
+        final fulfilled = widget.item.fulfilled;
+
         return Material(
-          color: _kCardBg,
+          color: fulfilled ? _kCardBgFulfilled : _kCardBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+            side: BorderSide(
+              color: fulfilled
+                  ? _kWishFulfilled.withValues(alpha: 0.55)
+                  : _kWishPending.withValues(alpha: 0.42),
+              width: 1.5,
+            ),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -514,9 +524,12 @@ class _WishCardState extends State<_WishCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        widget.item.cardEmoji,
-                        style: const TextStyle(fontSize: 40, height: 1),
+                      Opacity(
+                        opacity: fulfilled ? 0.45 : 1,
+                        child: Text(
+                          widget.item.cardEmoji,
+                          style: const TextStyle(fontSize: 40, height: 1),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       AnimatedSize(
@@ -525,7 +538,16 @@ class _WishCardState extends State<_WishCard> {
                         alignment: Alignment.topLeft,
                         child: Text(
                           widget.item.content,
-                          style: _kWishContentStyle,
+                          style: _kWishContentStyle.copyWith(
+                            color: fulfilled
+                                ? Colors.white.withValues(alpha: 0.42)
+                                : Colors.white,
+                            decoration: fulfilled
+                                ? TextDecoration.lineThrough
+                                : TextDecoration.none,
+                            decorationColor:
+                                Colors.white.withValues(alpha: 0.35),
+                          ),
                           maxLines: (canExpand && !_expanded)
                               ? _kWishCollapsedMaxLines
                               : null,
@@ -587,10 +609,10 @@ class _WishCardState extends State<_WishCard> {
                   right: 0,
                   child: widget.allowToggle && widget.onToggleFulfillment != null
                       ? _WishFulfillmentToggle(
-                          fulfilled: widget.item.fulfilled,
+                          fulfilled: fulfilled,
                           onTap: widget.onToggleFulfillment!,
                         )
-                      : _CornerLeafTag(),
+                      : _WishStatusBadge(fulfilled: fulfilled),
                 ),
               ],
             ),
@@ -613,9 +635,7 @@ class _WishFulfillmentToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: fulfilled
-          ? const Color(0xFF43A047)
-          : _kAccentBlue.withValues(alpha: 0.92),
+      color: fulfilled ? const Color(0xFF388E3C) : const Color(0xFFF57C00),
       borderRadius: const BorderRadius.only(
         bottomLeft: Radius.circular(20),
       ),
@@ -624,13 +644,28 @@ class _WishFulfillmentToggle extends StatelessWidget {
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(20),
         ),
-        child: SizedBox(
-          width: 48,
-          height: 36,
-          child: Icon(
-            fulfilled ? Icons.check_rounded : Icons.radio_button_unchecked,
-            color: Colors.white,
-            size: 22,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                fulfilled
+                    ? Icons.check_circle_rounded
+                    : Icons.hourglass_top_rounded,
+                color: Colors.white,
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                fulfilled ? '已实现' : '待实现',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -638,30 +673,50 @@ class _WishFulfillmentToggle extends StatelessWidget {
   }
 }
 
-/// 右上角蓝色装饰角标（近似原型「叶片」）
-class _CornerLeafTag extends StatelessWidget {
+class _WishStatusBadge extends StatelessWidget {
+  const _WishStatusBadge({required this.fulfilled});
+
+  final bool fulfilled;
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 52,
-      height: 40,
-      alignment: Alignment.topRight,
-      child: Container(
-        width: 48,
-        height: 36,
-        decoration: BoxDecoration(
-          color: _kAccentBlue.withValues(alpha: 0.92),
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(20),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 6,
-              offset: const Offset(-2, 2),
-            ),
-          ],
+      padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
+      decoration: BoxDecoration(
+        color: fulfilled
+            ? const Color(0xFF388E3C).withValues(alpha: 0.95)
+            : const Color(0xFFF57C00).withValues(alpha: 0.95),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(20),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.22),
+            blurRadius: 6,
+            offset: const Offset(-2, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            fulfilled
+                ? Icons.check_circle_rounded
+                : Icons.hourglass_top_rounded,
+            color: Colors.white,
+            size: 16,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            fulfilled ? '已实现' : '待实现',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

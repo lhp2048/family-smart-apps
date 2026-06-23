@@ -913,7 +913,9 @@ class _DayLogCard extends StatelessWidget {
           const SizedBox(height: 10),
           _LogTableHeader(),
           const SizedBox(height: 6),
-          ...group.rows.map((r) => _LogTableRow(row: r)),
+          ...group.rows.asMap().entries.map(
+                (e) => _LogTableRow(row: e.value, index: e.key),
+              ),
         ],
       ),
     );
@@ -951,68 +953,77 @@ class _LogTableHeader extends StatelessWidget {
 }
 
 class _LogTableRow extends StatelessWidget {
-  const _LogTableRow({required this.row});
+  const _LogTableRow({required this.row, required this.index});
 
   final PointsLogRow row;
+  final int index;
 
   @override
   Widget build(BuildContext context) {
     final pos = row.pointsDelta >= 0;
     final pts = pos ? '+${row.pointsDelta}' : '${row.pointsDelta}';
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 48,
-            child: Text(
-              row.time,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.75),
-                fontSize: 12,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: index.isOdd
+            ? Colors.white.withValues(alpha: 0.035)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 48,
+              child: Text(
+                row.time,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.75),
+                  fontSize: 12,
+                ),
               ),
             ),
-          ),
-          SizedBox(
-            width: 56,
-            child: Text(
-              row.person,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              row.item,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-            ),
-          ),
-          SizedBox(
-            width: 44,
-            child: Text(
-              pts,
-              textAlign: TextAlign.end,
-              style: TextStyle(
-                color: pos ? _kGreenPoints : Colors.redAccent,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+            SizedBox(
+              width: 56,
+              child: Text(
+                row.person,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
               ),
             ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            flex: 2,
-            child: Text(
-              row.remark,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.45),
-                fontSize: 11,
-                height: 1.3,
+            Expanded(
+              flex: 3,
+              child: Text(
+                row.item,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
               ),
             ),
-          ),
-        ],
+            SizedBox(
+              width: 44,
+              child: Text(
+                pts,
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                  color: pos ? _kGreenPoints : Colors.redAccent,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              flex: 2,
+              child: Text(
+                row.remark,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.45),
+                  fontSize: 11,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

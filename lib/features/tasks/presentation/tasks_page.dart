@@ -27,6 +27,10 @@ const Color _kAccentPurple = Color(0xFF7C4DFF);
 const Color _kCardBg = Color(0xFF252536);
 const Color _kProgressFill = Color(0xFFB388FF);
 
+const double _kHomeworkTableStatusWidth = 48;
+const int _kHomeworkTableNameFlex = 3;
+const int _kHomeworkTableTimeFlex = 4;
+
 String _sidebarDateShort(String bizDate) {
   final p = bizDate.split('-');
   if (p.length == 3) {
@@ -635,18 +639,8 @@ class _TableHeaderRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          flex: 5,
-          child: Text(
-            '作业项目',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.45),
-              fontSize: 12,
-            ),
-          ),
-        ),
         SizedBox(
-          width: 52,
+          width: _kHomeworkTableStatusWidth,
           child: Text(
             '状态',
             textAlign: TextAlign.center,
@@ -656,8 +650,18 @@ class _TableHeaderRow extends StatelessWidget {
             ),
           ),
         ),
-        SizedBox(
-          width: 52,
+        Expanded(
+          flex: _kHomeworkTableNameFlex,
+          child: Text(
+            '作业项目',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.45),
+              fontSize: 12,
+            ),
+          ),
+        ),
+        Expanded(
+          flex: _kHomeworkTableTimeFlex,
           child: Text(
             '时间',
             textAlign: TextAlign.end,
@@ -695,8 +699,30 @@ class _TaskDataRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          SizedBox(
+            width: _kHomeworkTableStatusWidth,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: onToggle == null
+                  ? Opacity(
+                      opacity: 0.85,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: _HomeworkDoneIndicator(done: done),
+                      ),
+                    )
+                  : InkWell(
+                      onTap: onToggle,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: _HomeworkDoneIndicator(done: done),
+                      ),
+                    ),
+            ),
+          ),
           Expanded(
-            flex: 5,
+            flex: _kHomeworkTableNameFlex,
             child: Text(
               item.name,
               style: const TextStyle(
@@ -706,87 +732,58 @@ class _TaskDataRow extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(
-            width: 52,
-            child: Center(
-              child: onToggle == null
-                  ? Opacity(
-                      opacity: 0.85,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: done
-                            ? Container(
-                                width: 22,
-                                height: 22,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF4CAF50),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Icon(
-                                  Icons.check,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Container(
-                                width: 22,
-                                height: 22,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                    color: Colors.white54,
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
-                      ),
-                    )
-                  : InkWell(
-                      onTap: onToggle,
-                      borderRadius: BorderRadius.circular(6),
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: done
-                            ? Container(
-                                width: 22,
-                                height: 22,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF4CAF50),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Icon(
-                                  Icons.check,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Container(
-                                width: 22,
-                                height: 22,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                    color: Colors.white54,
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
-                      ),
-                    ),
-            ),
-          ),
-          SizedBox(
-            width: 52,
+          Expanded(
+            flex: _kHomeworkTableTimeFlex,
             child: Text(
               timeStr,
               textAlign: TextAlign.end,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.fade,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.4),
-                fontSize: 13,
+                fontSize: 12,
+                height: 1.35,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HomeworkDoneIndicator extends StatelessWidget {
+  const _HomeworkDoneIndicator({required this.done});
+
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    if (done) {
+      return Container(
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          color: const Color(0xFF4CAF50),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const Icon(
+          Icons.check,
+          size: 16,
+          color: Colors.white,
+        ),
+      );
+    }
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: Colors.white54,
+          width: 2,
+        ),
       ),
     );
   }
