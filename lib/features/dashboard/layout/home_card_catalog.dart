@@ -45,7 +45,7 @@ const kHomeCardCatalog = <HomeCardCatalogEntry>[
   HomeCardCatalogEntry(
     cardId: 'calendar',
     title: '家庭日历',
-    subtitle: '今日作业 · 积分 · 行程与提醒',
+    subtitle: '今日',
     icon: Icons.calendar_month_rounded,
     iconBackground: Color(0xFF7986CB),
     route: '/calendar',
