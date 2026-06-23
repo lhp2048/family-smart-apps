@@ -143,6 +143,7 @@ class _ShoppingItemCard extends ConsumerWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onOpenDetail,
+        onLongPress: () => _copyName(context),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
