@@ -1,8 +1,8 @@
 @echo off
 setlocal EnableExtensions
 
-rem Serve family_smart_apps build/web locally (default :18027)
-rem Usage: scripts\serve_web_win.bat [port]
+rem Preview build/web locally (default :18027)
+rem Usage: scripts\serve.bat [port]
 
 set "SCRIPT_DIR=%~dp0"
 set "APP_ROOT=%SCRIPT_DIR%.."
@@ -12,7 +12,7 @@ if "%PORT%"=="" set "PORT=18027"
 
 if not exist "%WEB_DIR%\index.html" (
   echo ERROR: %WEB_DIR%\index.html not found.
-  echo Run scripts\build_web_win.bat first.
+  echo Run scripts\build.bat first.
   exit /b 1
 )
 
@@ -31,5 +31,3 @@ if exist "%WEB_DIR%\scripts\serve_web.py" (
 )
 
 endlocal
-
-

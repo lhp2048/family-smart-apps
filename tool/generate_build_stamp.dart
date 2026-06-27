@@ -1,13 +1,15 @@
-// 将构建时刻写入 lib/core/constants/build_stamp.dart（格式 yyyy.M.D.hhmm）。
+// 将构建时刻写入 lib/core/constants/build_stamp.dart（格式 yy.Mdd.hhmm，见 REQ.txt）。
 // 用法（在包根目录）：dart run tool/generate_build_stamp.dart
 import 'dart:io';
 
 void main() {
   final now = DateTime.now().toLocal();
+  final yy = now.year % 100;
+  final mdd = '${now.month}${now.day.toString().padLeft(2, '0')}';
   final hhmm =
       '${now.hour.toString().padLeft(2, '0')}'
       '${now.minute.toString().padLeft(2, '0')}';
-  final stamp = '${now.year}.${now.month}.${now.day}.$hhmm';
+  final stamp = '$yy.$mdd.$hhmm';
 
   final out = File('lib/core/constants/build_stamp.dart');
   out.writeAsStringSync(

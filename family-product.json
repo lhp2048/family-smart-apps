@@ -1,0 +1,44 @@
+{
+  "manifestVersion": 1,
+  "id": "family_smart_apps_web",
+  "title": "家庭看板 Web",
+  "subtitle": "family_smart_apps Flutter Web 静态部署",
+  "version": "26.627.1726",
+  "port": 18027,
+  "defaultInstallDir": "~/family_smart_apps_web",
+  "zipNameHint": "family_smart_apps_web.zip",
+  "packageType": "static-web",
+  "monorepoPath": "family_smart_apps",
+  "validateFiles": [
+    "index.html",
+    "family-product.json",
+    "INSTALL.txt",
+    "install.bat",
+    "install.sh",
+    "service.bat",
+    "service.sh",
+    "scripts/install_service_mac.sh",
+    "scripts/install_service_linux.sh",
+    "scripts/run_web.sh",
+    "scripts/serve_web.py"
+  ],
+  "healthPath": "/",
+  "selfUpgrade": false,
+  "build": {
+    "windows": "scripts\\build_and_pack.bat",
+    "mac": "./scripts/build_and_pack.sh",
+    "linux": "./scripts/build_and_pack.sh",
+    "notes": "解压后 install.bat|install.sh 或 service.bat|service.sh <action>；需 Flutter SDK 构建"
+  },
+  "platforms": {
+    "darwin": {
+      "serviceScript": "service.sh"
+    },
+    "linux": {
+      "serviceScript": "service.sh"
+    },
+    "windows": {
+      "serviceScript": "service.bat"
+    }
+  }
+}

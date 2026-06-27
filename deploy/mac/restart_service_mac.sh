@@ -9,12 +9,17 @@
 #
 set -euo pipefail
 
-LABEL="com.familybot.web-app"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+LABEL="com.family.smart.apps-web"
+_set_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${_set_dir}/lib/paths.sh" ]]; then
+  source "${_set_dir}/lib/paths.sh"
+else
+  source "${_set_dir}/../lib/paths.sh"
+fi
+apps_web_init_paths || exit 1
 RUN_SCRIPT="${SCRIPT_DIR}/run_web.sh"
 PLIST_DEST="${HOME}/Library/LaunchAgents/${LABEL}.plist"
-LOG_DIR="${HOME}/Library/Logs/familybot-web-app"
+LOG_DIR="${HOME}/Library/Logs/family-smart-apps-web"
 PID_FILE="${LOG_DIR}/web-app.pid"
 
 MODE="auto"
@@ -149,5 +154,8 @@ case "${MODE}" in
 esac
 
 sleep 1
-health_check || true
+health_check || {
+  echo "WARN: 端口 ${PORT} 暂未响应，launchd 可能仍在启动" >&2
+  echo "  日志: tail -f ${LOG_DIR}/stderr.log" >&2
+}
 exit 0

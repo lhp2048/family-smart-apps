@@ -6,9 +6,8 @@ family_smart_center — Flutter 客户端需求说明
 家庭智能中心多端客户端；在线数据以 family_smart_datacenter（:18025）为唯一数据源。
 
   · 设置中配置站点根 + API KEY（可空）即可接入。
-  · Web 门户由 family_smart_center_web 托管，默认 :18024；Flutter App 路径 /app/。
-  · 本 App 独立 Web 静态站（Mac zip 解压部署）默认 :18027。
-  · AI 智能服务（:18024）本 App 不直接调用。
+  · 多端 Flutter 客户端；Web 看板独立部署，默认 :18027（见 scripts/build_and_pack.bat）。
+  · Web 门户 family_smart_center_web（:18024）为宣传、管理与 zip 安装升级入口；本 App 不直接调用门户 API。
 
 
 二、读 API（已对接 GET /api/v1/*）
@@ -39,15 +38,21 @@ family_smart_center — Flutter 客户端需求说明
 
 五、构建与部署
 --------------------------------------------------------------------------------
-Flutter Web 构建:
-  scripts/build_web_mac.sh / build_web_win.bat
-  输出: build/web/
+Flutter Web 开发:
+  scripts/dev.bat / dev.sh          本地 flutter run（Web）
+  scripts/serve.bat / serve.sh          预览 build/web
 
-Windows 打包 zip（Mac 部署）:
-  scripts/build_and_pack_web_win.bat
-  输出: dist_out/family_smart_apps_web.zip
+Flutter Web 构建打包（REQ）:
+  scripts/build.bat / build.sh
+  scripts/pack.bat / pack.sh
+  scripts/build_and_pack.bat / build_and_pack.sh
+  输出: build/web/、dist_out/family_smart_apps_web.zip
 
-Mac 升级:
+解压后安装:
+  install.bat / install.sh  或  service.bat|service.sh <action>
+  详见 deploy/INSTALL.txt
+
+Mac 从 zip 升级:
   ./scripts/update_service_mac.sh <zip路径> <解压目录>
 
 Web 构建使用 --pwa-strategy=none；index.html 启动时自动注销 SW 并清 Cache API（保留 Local Storage）。升级后打开页面即可，首次可能自动刷新一次。

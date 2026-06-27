@@ -12,9 +12,9 @@
 #
 set -euo pipefail
 
-LABEL="com.familybot.web-app"
+LABEL="com.family.smart.apps-web"
 PLIST_DEST="${HOME}/Library/LaunchAgents/${LABEL}.plist"
-LOG_DIR="${HOME}/Library/Logs/familybot-web-app"
+LOG_DIR="${HOME}/Library/Logs/family-smart-apps-web"
 
 ZIP="${1:-}"
 DEST="${2:-}"
@@ -137,32 +137,40 @@ fix_script_line_endings
 if [[ -d "${DEST}/scripts" ]]; then
   chmod +x "${DEST}/scripts/"*.sh 2>/dev/null || true
 fi
+chmod +x "${DEST}/"*.sh 2>/dev/null || true
 
-INSTALL_SCRIPT="${DEST}/scripts/install_service_mac.sh"
-RESTART_SCRIPT="${DEST}/scripts/restart_service_mac.sh"
-
-if [[ ! -x "${INSTALL_SCRIPT}" ]]; then
-  echo "错误: 未找到 ${INSTALL_SCRIPT}" >&2
+if [[ -x "${DEST}/service.sh" ]]; then
+  echo "==> 升级 launchd 服务配置并启动 (service.sh install) ..."
+  if [[ -n "${PORT}" && "${PORT}" != "18027" ]]; then
+    bash "${DEST}/service.sh" install --port "${PORT}"
+  else
+    bash "${DEST}/service.sh" install
+  fi
+elif [[ -x "${DEST}/scripts/install_service_mac.sh" ]]; then
+  INSTALL_SCRIPT="${DEST}/scripts/install_service_mac.sh"
+  echo "==> 升级 launchd 服务配置并启动 ..."
+  if [[ -n "${PORT}" && "${PORT}" != "18027" ]]; then
+    bash "${INSTALL_SCRIPT}" --port "${PORT}"
+  else
+    bash "${INSTALL_SCRIPT}"
+  fi
+else
+  echo "错误: 未找到 service.sh 或 scripts/install_service_mac.sh" >&2
   exit 1
 fi
 
-echo "==> 升级 launchd 服务配置并启动 ..."
-if [[ -n "${PORT}" && "${PORT}" != "18027" ]]; then
-  bash "${INSTALL_SCRIPT}" --port "${PORT}"
-else
-  bash "${INSTALL_SCRIPT}"
-fi
-
 sleep 1
-if [[ -x "${RESTART_SCRIPT}" ]]; then
-  bash "${RESTART_SCRIPT}" --force --port "${PORT}" || true
+if [[ -x "${DEST}/service.sh" ]]; then
+  bash "${DEST}/service.sh" restart --force || true
+elif [[ -x "${DEST}/scripts/restart_service_mac.sh" ]]; then
+  bash "${DEST}/scripts/restart_service_mac.sh" --force --port "${PORT}" || true
 fi
 
 if curl -sf "http://127.0.0.1:${PORT}/" >/dev/null 2>&1; then
   echo ""
   echo "升级完成。"
   echo "  访问: http://127.0.0.1:${PORT}"
-  echo "  状态: ${DEST}/scripts/install_service_mac.sh --status"
+  echo "  状态: ${DEST}/service.sh status"
   echo "  日志: tail -f ${LOG_DIR}/stdout.log"
 else
   echo ""

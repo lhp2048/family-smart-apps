@@ -8,10 +8,9 @@
 
 | 服务 | 端口 |
 |------|------|
-| AI 服务 `family_smart_center_server` | 18024 |
+| Web 门户 `family_smart_center_web` | 18024（宣传 + 管理 + 安装升级） |
 | 数据中心 `family_smart_datacenter` | 18025 |
-| **Web 门户** `family_smart_center_web` | **18024**（`/app/` 为 Flutter 只读 App） |
-| **本 App 独立 Web 部署**（Mac 解压 zip） | **18027** |
+| **本 App Web 部署**（Mac zip 解压） | **18027** |
 
 ## 接入 Datacenter
 
@@ -20,25 +19,51 @@
 3. **API KEY**：无鉴权环境留空；有鉴权时填 `X-API-Key`（写操作可用 Sync Key，见设置）
 4. 保存并校验通过后，各页面从 datacenter 在线读数据
 
-## 本 App 独立 Web 打包与 Mac 部署（:18027）
+## 本 App 独立 Web 打包与部署（:18027）
 
-Windows 一键构建并打包（产物在本项目内）：
+Windows 一键构建并打包：
 
 ```bat
 cd family_smart_apps
-scripts\build_and_pack_web_win.bat
+scripts\build_and_pack.bat
+```
+
+Mac / Linux：
+
+```bash
+cd family_smart_apps
+chmod +x scripts/*.sh
+./scripts/build_and_pack.sh
+```
+
+本地 Web 开发：
+
+```bat
+scripts\dev.bat
+```
+
+```bash
+./scripts/dev.sh
 ```
 
 输出：
 - 构建：`family_smart_apps/build/web/`
 - zip：`family_smart_apps/dist_out/family_smart_apps_web.zip`
 
-Mac 首次安装或升级：
+解压后安装（三端通用）：
+
+```bat
+install.bat
+```
 
 ```bash
-chmod +x scripts/*.sh
-./scripts/install_service_mac.sh
-# 或升级：
+./install.sh
+# 或 ./service.sh install|start|stop|restart|status|uninstall
+```
+
+Mac 从 zip 升级：
+
+```bash
 ./scripts/update_service_mac.sh ~/Downloads/family_smart_apps_web.zip ~/family_smart_apps_web
 ```
 

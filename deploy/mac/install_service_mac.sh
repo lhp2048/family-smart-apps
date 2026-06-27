@@ -7,17 +7,33 @@
 #   ./scripts/install_service_mac.sh --status      # 查看状态
 #
 # 说明:
-#   - Plist: ~/Library/LaunchAgents/com.familybot.web-app.plist
-#   - 日志: ~/Library/Logs/familybot-web-app/
+#   - Plist: ~/Library/LaunchAgents/com.family.smart.apps-web.plist
+#   - 日志: ~/Library/Logs/family-smart-apps-web/
 #
 set -euo pipefail
 
-LABEL="com.familybot.web-app"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+LABEL="com.family.smart.apps-web"
+LEGACY_LABELS=("com.familybot.web-app")
+_set_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${_set_dir}/lib/paths.sh" ]]; then
+  source "${_set_dir}/lib/paths.sh"
+else
+  source "${_set_dir}/../lib/paths.sh"
+fi
+apps_web_init_paths || exit 1
 RUN_SCRIPT="${SCRIPT_DIR}/run_web.sh"
 PLIST_DEST="${HOME}/Library/LaunchAgents/${LABEL}.plist"
-LOG_DIR="${HOME}/Library/Logs/familybot-web-app"
+LOG_DIR="${HOME}/Library/Logs/family-smart-apps-web"
+LIB_DIR="${LIB_DIR:-${SCRIPT_DIR}/lib}"
+
+if [[ -f "${LIB_DIR}/service_common.sh" ]]; then
+  # shellcheck source=lib/service_common.sh
+  source "${LIB_DIR}/service_common.sh"
+fi
+if [[ -f "${LIB_DIR}/resolve_python.sh" ]]; then
+  # shellcheck source=lib/resolve_python.sh
+  source "${LIB_DIR}/resolve_python.sh"
+fi
 
 DO_UNINSTALL=0
 DO_STATUS=0
@@ -78,6 +94,9 @@ if [[ "${DO_STATUS}" -eq 1 ]]; then
   else
     echo "运行状态: 未加载"
   fi
+  if declare -F resolve_python_bin >/dev/null; then
+    resolve_python_bin && echo "Python: ${RESOLVED_PYTHON} (${RESOLVED_PYTHON_VERSION})" || echo "Python: 未找到 >= 3.10"
+  fi
   echo "访问地址: http://127.0.0.1:${PORT}"
   echo "日志目录: ${LOG_DIR}"
   exit 0
@@ -97,9 +116,18 @@ if [[ ! -f "${APP_ROOT}/index.html" ]]; then
   exit 1
 fi
 
-chmod +x "${RUN_SCRIPT}" "${SCRIPT_DIR}/start_service_mac.sh" "${SCRIPT_DIR}/restart_service_mac.sh" "${SCRIPT_DIR}/update_service_mac.sh" 2>/dev/null || true
+chmod +x "${RUN_SCRIPT}" "${SCRIPT_DIR}/start_service_mac.sh" "${SCRIPT_DIR}/restart_service_mac.sh" \
+  "${SCRIPT_DIR}/stop_service_mac.sh" "${SCRIPT_DIR}/update_service_mac.sh" 2>/dev/null || true
+
+if declare -F resolve_python_bin >/dev/null; then
+  resolve_python_bin || exit 1
+  echo "==> Python: ${RESOLVED_PYTHON} (${RESOLVED_PYTHON_VERSION})"
+fi
 
 echo "==> 应用目录: ${APP_ROOT}"
+if declare -F remove_legacy_launchd_labels >/dev/null; then
+  remove_legacy_launchd_labels "${LEGACY_LABELS[@]}"
+fi
 mkdir -p "${LOG_DIR}"
 mkdir -p "${HOME}/Library/LaunchAgents"
 
@@ -152,8 +180,6 @@ fi
 
 echo ""
 echo "安装完成。"
-echo "  运行:  ./scripts/start_service_mac.sh"
-echo "  重启:  ./scripts/restart_service_mac.sh"
-echo "  状态:  ./scripts/install_service_mac.sh --status"
-echo "  卸载:  ./scripts/install_service_mac.sh --uninstall"
+echo "  维护:  ./service.sh start|stop|restart|status|uninstall"
+echo "  状态:  ./service.sh status"
 echo "  日志:  tail -f ${LOG_DIR}/stdout.log"

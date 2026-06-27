@@ -1,0 +1,73 @@
+家庭看板 Web（family_smart_apps_web）— 部署说明 (Windows / Linux / macOS)
+======================================================================
+
+zip 根目录解压后结构:
+  index.html, family-product.json, INSTALL.txt
+  install.bat / install.sh     安装入口（等同 service.* install）
+  service.bat / service.sh     服务维护统一入口（REQ：单脚本 + 参数）
+  scripts/                     各平台底层脚本 + serve_web.py
+
+默认端口: 18027
+默认监听: 0.0.0.0（允许局域网访问）
+Python: 需要 3.10+（仅 stdlib 静态服务）；./service.sh install 会自动选 python3.13/3.12/…
+  可选指定: PYTHON_BIN=python3.12 ./service.sh install
+Skill: 本服务无 WorkBuddy / Agent skill，无需 skill 安装脚本。
+
+======================================================================
+服务维护（service.bat | service.sh）
+======================================================================
+
+  动作          Windows              Linux / macOS
+  ------------  -------------------  ---------------------------
+  安装+自启     service.bat install  ./service.sh install
+  启动          service.bat start    ./service.sh start
+  停止          service.bat stop     ./service.sh stop
+  重启          service.bat restart  ./service.sh restart --force
+  状态          service.bat status   ./service.sh status
+  卸载          service.bat uninstall ./service.sh uninstall
+
+  快捷安装（REQ install.bat/sh）:
+    install.bat
+    ./install.sh
+
+  Linux/macOS 首次:
+    chmod +x *.sh scripts/*.sh
+
+======================================================================
+Windows
+======================================================================
+
+1. 解压到例如 D:\family_smart_apps_web
+2. install.bat
+3. 浏览器: http://127.0.0.1:18027/
+4. 升级: 门户 deploy.html 上传 zip，或 ./scripts/update_service_mac.sh（macOS）
+
+======================================================================
+Linux
+======================================================================
+
+1. unzip family_smart_apps_web.zip -d ~/family_smart_apps_web
+2. cd ~/family_smart_apps_web
+3. chmod +x *.sh scripts/*.sh
+4. ./service.sh install
+5. 无登录自启: loginctl enable-linger $USER
+6. 日志: journalctl --user -u family-smart-apps-web -f
+
+======================================================================
+macOS
+======================================================================
+
+1. unzip -d ~/family_smart_apps_web && cd ~/family_smart_apps_web
+2. chmod +x *.sh scripts/*.sh
+3. ./service.sh install
+4. 从 zip 升级: ./scripts/update_service_mac.sh <zip> <目录>
+5. 日志: ~/Library/Logs/family-smart-apps-web/
+   launchd: com.family.smart.apps-web
+
+======================================================================
+开发机打包
+======================================================================
+
+  Windows:  scripts\build_and_pack.bat
+  Linux/Mac: ./scripts/build_and_pack.sh
+  规范: docs/FAMILY_PACKAGING.md
