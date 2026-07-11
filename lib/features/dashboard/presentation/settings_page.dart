@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/api_config.dart' show kFamilyApiDefaultOrigin;
+import '../../../core/constants/api_config.dart' show kFamilyPortalDefaultOrigin;
 import '../../../core/constants/build_stamp.dart' show kAppBuildStamp;
 import '../../../core/utils/bearer_token.dart';
 import '../../../core/theme/app_theme.dart';
@@ -221,20 +221,46 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       await ref
           .read(familyApiAccessTokenNotifierProvider.notifier)
           .persistToken(_tokenCtrl.text);
-      await FamilyApiClient.validateServerBaseUrl(
+      final discovery = await FamilyApiClient.validatePortalAndDiscover(
         trimmed,
         accessToken: token,
       );
       await ref
-          .read(familyApiOriginNotifierProvider.notifier)
+          .read(familyPortalOriginNotifierProvider.notifier)
           .persistValidatedOrigin(trimmed);
+      await ref
+          .read(familyDatacenterV1BaseNotifierProvider.notifier)
+          .persistValidatedV1Base(discovery.datacenterV1Base);
+      final mc = discovery.mediacenter;
+      if (mc != null) {
+        await ref
+            .read(familyMediacenterV1BaseNotifierProvider.notifier)
+            .persistValidatedV1Base(mc.apiBaseUrl);
+        await ref
+            .read(familyMediacenterOriginNotifierProvider.notifier)
+            .persistOrigin(mc.origin);
+      } else {
+        await ref
+            .read(familyMediacenterV1BaseNotifierProvider.notifier)
+            .clearV1Base();
+        await ref
+            .read(familyMediacenterOriginNotifierProvider.notifier)
+            .clearOrigin();
+      }
       invalidateFamilyApiCaches(ref);
       if (!mounted) return;
       setState(() {
         _editingServer = false;
         _validating = false;
       });
-      messenger.showSnackBar(const SnackBar(content: Text('服务器地址已保存')));
+      final mcHint = mc == null
+          ? '（未注册 mediacenter）'
+          : mc.running
+              ? ' · mediacenter 已连接'
+              : ' · mediacenter 未运行';
+      messenger.showSnackBar(
+        SnackBar(content: Text('门户地址已保存$mcHint')),
+      );
     } on FamilyApiException catch (e) {
       if (!mounted) return;
       setState(() => _validating = false);
@@ -251,8 +277,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final muted = Theme.of(
       context,
     ).colorScheme.onSurface.withValues(alpha: 0.55);
-    final baseAsync = ref.watch(familyApiOriginNotifierProvider);
-    final displayOrigin = baseAsync.valueOrNull ?? kFamilyApiDefaultOrigin;
+    final baseAsync = ref.watch(familyPortalOriginNotifierProvider);
+    final displayOrigin = baseAsync.valueOrNull ?? kFamilyPortalDefaultOrigin;
     final apiConfigured = ref.watch(familyApiIsConfiguredProvider);
     final membersAsync = ref.watch(familyMembersAllAsyncProvider);
     final homeTitleAsync = ref.watch(dashboardHomeTitleProvider);
@@ -397,7 +423,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             children: [
                               const Expanded(
                                 child: Text(
-                                  '服务器地址',
+                                  '门户地址',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 15,
@@ -469,7 +495,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                         decoration: InputDecoration(
                                           isDense: true,
                                           hintText:
-                                              'http://192.168.2.11:18025',
+                                              'http://192.168.2.11:18024',
                                           hintStyle: TextStyle(
                                             color: Colors.white.withValues(
                                               alpha: 0.35,
@@ -496,7 +522,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                       )
                                     : Text(
                                         displayOrigin.isEmpty
-                                            ? '示例：http://192.168.2.11:18025'
+                                            ? '示例：http://192.168.2.11:18024'
                                             : displayOrigin,
                                         style: TextStyle(
                                           color: Colors.white.withValues(
@@ -778,7 +804,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ),
                     ),
                     Text(
-                      '确定后将请求 GET {上述地址}/api/v1/members 校验；成功且成员非空后保存站点根（不含 /api/v1）。'
+                      '确定后将请求 GET {门户}/api/v1/portal/services 发现数据中心，'
+                      '再校验 GET {数据中心}/api/v1/members；成功且成员非空后保存。'
                       ' API KEY 可留空（数据中心未配置鉴权时）。',
                       style: TextStyle(
                         color: muted,

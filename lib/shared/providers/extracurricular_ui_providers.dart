@@ -91,19 +91,19 @@ final extracurricularRemoteItemsAsyncProvider =
 
 /// Mock：[filteredExtracurricularItemsProvider]；远程：按当前 [filterId] 拉取列表（未看筛在 UI 层处理）
 ///
-/// 站点根 [familyApiOriginNotifierProvider] 仍在加载时返回 [AsyncLoading]，避免误用 Mock
-/// （否则首帧 `isConfigured==false` 会短暂显示「家有儿女」等演示数据）。
+/// 门户根 [familyPortalOriginNotifierProvider] 仍在加载时返回 [AsyncLoading]，避免误用 Mock
 final extracurricularItemsAsyncProvider =
     Provider<AsyncValue<List<ExtracurricularItem>>>((ref) {
-  final originAsync = ref.watch(familyApiOriginNotifierProvider);
+  ref.watch(familyPortalDiscoveryBootstrapProvider);
+  final originAsync = ref.watch(familyPortalOriginNotifierProvider);
   if (originAsync.isLoading) {
     return const AsyncLoading<List<ExtracurricularItem>>();
   }
   if (originAsync.hasError) {
     return AsyncData(ref.watch(filteredExtracurricularItemsProvider));
   }
-  final origin = originAsync.requireValue;
-  if (origin.trim().isEmpty) {
+  final configured = ref.watch(familyApiIsConfiguredProvider);
+  if (!configured) {
     return AsyncData(ref.watch(filteredExtracurricularItemsProvider));
   }
   final filterId = ref.watch(extracurricularFilterIdProvider);

@@ -38,6 +38,83 @@
   
   
   
+  
+  
+  <script src="js/pdfjs_loader.js"></script>
+  <script id="sw-cache-cleanup">
+    (function () {
+      var APP_BUILD_STAMP = '26.705.1411';
+      var PERSIST_KEY = 'family_app_sw_purge_stamp';
+      var BOOTSTRAP_ID = 'flutter-bootstrap-loader';
+
+      function loadFlutter() {
+        function attach() {
+          if (document.getElementById(BOOTSTRAP_ID)) {
+            return;
+          }
+          var el = document.createElement('script');
+          el.id = BOOTSTRAP_ID;
+          el.src = 'flutter_bootstrap.js?v=' + encodeURIComponent(APP_BUILD_STAMP);
+          el.async = true;
+          document.body.appendChild(el);
+        }
+        if (document.body) {
+          attach();
+        } else {
+          document.addEventListener('DOMContentLoaded', attach);
+        }
+      }
+
+      function purgeServiceWorkerCache() {
+        var tasks = [];
+
+        if ('serviceWorker' in navigator) {
+          tasks.push(
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              return Promise.all(regs.map(function (r) {
+                return r.unregister();
+              }));
+            })
+          );
+        }
+
+        if ('caches' in window) {
+          tasks.push(
+            caches.keys().then(function (names) {
+              return Promise.all(names.map(function (name) {
+                return caches.delete(name);
+              }));
+            })
+          );
+        }
+
+        return Promise.all(tasks);
+      }
+
+      try {
+        if (localStorage.getItem(PERSIST_KEY) === APP_BUILD_STAMP) {
+          loadFlutter();
+          return;
+        }
+      } catch (_) {
+        loadFlutter();
+        return;
+      }
+
+      purgeServiceWorkerCache()
+        .then(function () {
+          try {
+            localStorage.setItem(PERSIST_KEY, APP_BUILD_STAMP);
+          } catch (_) {}
+          loadFlutter();
+        })
+        .catch(function () {
+          loadFlutter();
+        });
+    })();
+  </script>
+  
+  
   <style id="splash-screen-style">
     html {
       height: 100%
@@ -103,77 +180,6 @@
       document.body.style.background = "transparent";
     }
   </script>
-  <script id="sw-cache-cleanup">
-    (function () {
-      var SESSION_KEY = 'family_app_sw_purge_v2';
-      var BOOTSTRAP_ID = 'flutter-bootstrap-loader';
-
-      function loadFlutter() {
-        function attach() {
-          if (document.getElementById(BOOTSTRAP_ID)) {
-            return;
-          }
-          var el = document.createElement('script');
-          el.id = BOOTSTRAP_ID;
-          el.src = 'flutter_bootstrap.js';
-          el.async = true;
-          document.body.appendChild(el);
-        }
-        if (document.body) {
-          attach();
-        } else {
-          document.addEventListener('DOMContentLoaded', attach);
-        }
-      }
-
-      function purgeServiceWorkerCache() {
-        var hadController = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
-        var tasks = [];
-
-        if ('serviceWorker' in navigator) {
-          tasks.push(
-            navigator.serviceWorker.getRegistrations().then(function (regs) {
-              return Promise.all(regs.map(function (r) {
-                return r.unregister();
-              }));
-            })
-          );
-        }
-
-        if ('caches' in window) {
-          tasks.push(
-            caches.keys().then(function (names) {
-              return Promise.all(names.map(function (name) {
-                return caches.delete(name);
-              }));
-            })
-          );
-        }
-
-        return Promise.all(tasks).then(function () {
-          return hadController;
-        });
-      }
-
-      if (sessionStorage.getItem(SESSION_KEY)) {
-        loadFlutter();
-        return;
-      }
-
-      purgeServiceWorkerCache()
-        .then(function (needsReload) {
-          sessionStorage.setItem(SESSION_KEY, '1');
-          if (needsReload) {
-            location.reload();
-            return;
-          }
-          loadFlutter();
-        })
-        .catch(function () {
-          loadFlutter();
-        });
-    })();
-  </script>
 </head>
 <body>
   <picture id="splash">
@@ -181,6 +187,8 @@
       <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
       <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
   </picture>
+
+
   
   
   

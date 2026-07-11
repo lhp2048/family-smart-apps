@@ -7,6 +7,7 @@ import '../../features/dashboard/data/dashboard_prototype_models.dart';
 import '../../features/english_bonus/data/syllable_generated_sheet_record.dart';
 import '../../features/debate/data/debate_prototype_models.dart';
 import '../../features/extracurricular/data/extracurricular_models.dart';
+import '../../features/ebook/data/ebook_models.dart';
 import '../../features/points/data/points_prototype_models.dart';
 import '../../features/timemachine/data/timemachine_prototype_models.dart';
 import '../../features/wishwall/data/wishwall_prototype_models.dart';
@@ -40,6 +41,7 @@ class MockAppState {
     required this.timemachineEntries,
     required this.debateDayBundles,
     required this.extracurricularItems,
+    required this.ebookBrowse,
     required this.syllableGeneratedSheets,
   });
 
@@ -71,6 +73,8 @@ class MockAppState {
 
   final List<ExtracurricularItem> extracurricularItems;
 
+  final EbookBrowseResult ebookBrowse;
+
   /// 已生成的音节练习卷（仅包含有记录的日期；后台生成后写入）
   final List<SyllableGeneratedSheetRecord> syllableGeneratedSheets;
 
@@ -91,6 +95,7 @@ class MockAppState {
     List<TimemachineEntry>? timemachineEntries,
     List<DebateDayBundle>? debateDayBundles,
     List<ExtracurricularItem>? extracurricularItems,
+    EbookBrowseResult? ebookBrowse,
     List<SyllableGeneratedSheetRecord>? syllableGeneratedSheets,
   }) {
     return MockAppState(
@@ -111,6 +116,7 @@ class MockAppState {
       timemachineEntries: timemachineEntries ?? this.timemachineEntries,
       debateDayBundles: debateDayBundles ?? this.debateDayBundles,
       extracurricularItems: extracurricularItems ?? this.extracurricularItems,
+      ebookBrowse: ebookBrowse ?? this.ebookBrowse,
       syllableGeneratedSheets:
           syllableGeneratedSheets ?? this.syllableGeneratedSheets,
     );
@@ -585,6 +591,39 @@ class MockAppState {
       ),
     ];
 
+    const ebookBrowse = EbookBrowseResult(
+      root: '~/family_mediacenter/downloads/ebooks',
+      dir: 'ebooks',
+      path: '',
+      parent: '',
+      folder: EbookFolderMeta(
+        title: '示例书库',
+        description: '配置门户与 mediacenter 后显示真实书库',
+      ),
+      entries: [
+        EbookEntry(
+          name: '示例故事.epub',
+          subPath: 'demo/sample.epub',
+          relPath: 'ebooks/demo/sample.epub',
+          isDir: false,
+          kind: EbookKind.epub,
+          size: 1024000,
+        ),
+        EbookEntry(
+          name: '阅读指南.md',
+          subPath: 'demo/readme.md',
+          relPath: 'ebooks/demo/readme.md',
+          isDir: false,
+          kind: EbookKind.markdown,
+          size: 2048,
+        ),
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 30,
+      totalPages: 1,
+    );
+
     return MockAppState(
       homeSummaries: summaries,
       featureEntries: features,
@@ -602,6 +641,7 @@ class MockAppState {
       timemachineEntries: timemachineEntries,
       debateDayBundles: debateDayBundles,
       extracurricularItems: extracurricularItems,
+      ebookBrowse: ebookBrowse,
       syllableGeneratedSheets: const [],
     );
   }

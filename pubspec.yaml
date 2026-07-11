@@ -31,6 +31,14 @@ dependencies:
   url_launcher: ^6.3.1
   fl_chart: ^0.70.2
   table_calendar: ^3.2.0
+  flutter_markdown: ^0.7.7+1
+  pdfx: ^2.9.2
+  epub_plus: ^5.1.0
+  flutter_widget_from_html: ^0.17.2
+
+dependency_overrides:
+  pdfx:
+    path: packages/pdfx
 
 dev_dependencies:
   flutter_test:
@@ -61,10 +69,10 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   color: "#1A1A2E"
-  image: assets/app_icon/app_icon_source.png
+  image: assets/app_icon/app_icon_splash_foreground.png
   android_12:
     color: "#1A1A2E"
-    image: assets/app_icon/app_icon_source.png
+    image: assets/app_icon/app_icon_splash_foreground.png
   web: true
 
 flutter:

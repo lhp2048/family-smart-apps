@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/utils/api_base_url.dart';
 import '../../../core/utils/bearer_token.dart';
+import 'portal_discovery_client.dart';
 
 class FamilyApiException implements Exception {
   FamilyApiException(this.message);
@@ -74,20 +75,51 @@ class FamilyApiClient {
     return dio;
   }
 
-  /// 设置页保存前校验：请求 `GET {origin}/api/v1/members`，且成员列表非空。
-  static Future<void> validateServerBaseUrl(
-    String rawInput, {
+  /// 设置页保存前：经门户发现数据中心与 mediacenter，再请求 `GET {apiBaseUrl}/members`。
+  static Future<PortalDiscoveryResult> validatePortalAndDiscover(
+    String rawPortalInput, {
     String? accessToken,
   }) async {
-    final String origin;
+    final String portalOrigin;
     try {
-      origin = normalizeFamilyApiOrigin(rawInput);
+      portalOrigin = normalizeFamilyApiOrigin(rawPortalInput);
     } on FormatException catch (e) {
       final m = e.message;
       throw FamilyApiException(m.isNotEmpty ? m : '地址无效');
     }
-    final v1Base = familyOriginToApiV1Base(origin);
-    final dio = createDio(baseUrl: v1Base, accessToken: accessToken);
+    PortalDiscoveryResult discovery;
+    try {
+      discovery = await PortalDiscoveryClient.discoverAll(portalOrigin);
+    } on PortalDiscoveryException catch (e) {
+      throw FamilyApiException(e.message);
+    }
+    await validateDatacenterMembers(discovery.datacenterV1Base, accessToken: accessToken);
+    return discovery;
+  }
+
+  /// 兼容旧调用：仅返回数据中心 v1 基址。
+  static Future<String> validatePortalAndDiscoverDatacenterOnly(
+    String rawPortalInput, {
+    String? accessToken,
+  }) async {
+    final result = await validatePortalAndDiscover(
+      rawPortalInput,
+      accessToken: accessToken,
+    );
+    return result.datacenterV1Base;
+  }
+
+  /// 校验数据中心成员接口（发现后或直连调试）。
+  static Future<void> validateDatacenterMembers(
+    String v1Base, {
+    String? accessToken,
+  }) async {
+    final base = v1Base.trim();
+    if (base.isEmpty) {
+      throw FamilyApiException('数据中心 apiBaseUrl 为空');
+    }
+    final normalized = base.endsWith('/') ? base : '$base/';
+    final dio = createDio(baseUrl: normalized, accessToken: accessToken);
     try {
       final res = await dio.get<Map<String, dynamic>>('members');
       final list = _parseMembersListFromResponse(res.data);
@@ -101,7 +133,29 @@ class FamilyApiClient {
     }
   }
 
+  /// 设置页保存前校验：请求 `GET {origin}/api/v1/members`，且成员列表非空。
+  @Deprecated('Use validatePortalAndDiscover for portal-based discovery')
+  static Future<void> validateServerBaseUrl(
+    String rawInput, {
+    String? accessToken,
+  }) async {
+    final String origin;
+    try {
+      origin = normalizeFamilyApiOrigin(rawInput);
+    } on FormatException catch (e) {
+      final m = e.message;
+      throw FamilyApiException(m.isNotEmpty ? m : '地址无效');
+    }
+    final v1Base = familyOriginToApiV1Base(origin);
+    await validateDatacenterMembers(v1Base, accessToken: accessToken);
+  }
+
   static String _messageForValidateDio(DioException e) {
+    return messageForDio(e);
+  }
+
+  /// 解析 Dio 错误为简短中文提示（首页卡片等复用）。
+  static String messageForDio(DioException e) {
     final data = e.response?.data;
     if (data is Map) {
       final m = data['message']?.toString();
@@ -110,7 +164,7 @@ class FamilyApiClient {
     final code = e.response?.statusCode;
     switch (code) {
       case 404:
-        return '未找到接口(404)。请确认端口正确（如 :18025），且服务提供 GET /api/v1/members';
+        return '未找到接口(404)。请确认数据中心已启动，且提供 GET /api/v1/members';
       case 401:
       case 403:
         return '无权限访问($code)，请检查设置中的访问API KEY（X-API-Key）是否正确';
@@ -234,6 +288,12 @@ class FamilyApiClient {
     return _unwrapData(res.data);
   }
 
+  /// `GET /v1/home/cards/catalog` — 已启用的首页卡片（含 ownerService）。
+  Future<Map<String, dynamic>> getHomeCardCatalog() async {
+    final res = await _dio.get<Map<String, dynamic>>('home/cards/catalog');
+    return _unwrapData(res.data);
+  }
+
   /// `GET /v1/home/cards/{cardId}?size=small|medium|large`
   Future<Map<String, dynamic>> getHomeCardPreview({
     required String cardId,
@@ -255,6 +315,10 @@ class FamilyApiClient {
     final res = await _dio.get<Map<String, dynamic>>(
       'home/cards/$cardId',
       queryParameters: params,
+      options: Options(
+        // datacenter 业务错误以 HTTP 400 + JSON {code,message} 返回，需交给 _unwrapData 解析。
+        validateStatus: (status) => status != null && status < 500,
+      ),
     );
     return _unwrapData(res.data);
   }

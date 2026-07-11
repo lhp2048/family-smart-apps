@@ -10,6 +10,9 @@ import '../features/english_bonus/presentation/syllable_sheet_preview_page.dart'
 import '../features/dashboard/presentation/settings_page.dart';
 import '../features/debate/presentation/debate_page.dart';
 import '../features/extracurricular/presentation/extracurricular_page.dart';
+import '../features/ebook/presentation/ebook_library_page.dart';
+import '../features/ebook/data/ebook_api_mappers.dart';
+import '../features/ebook/presentation/ebook_reader_page.dart';
 import '../features/voice/presentation/voice_history_chat_page.dart';
 import '../features/points/presentation/points_page.dart';
 import '../features/shopping/presentation/shopping_item_detail_page.dart';
@@ -90,6 +93,27 @@ GoRouter createAppRouter() {
         path: '/extra-curricular',
         name: 'extraCurricular',
         builder: (context, state) => const ExtracurricularPage(),
+      ),
+      GoRoute(
+        path: '/ebook',
+        name: 'ebook',
+        builder: (context, state) => const EbookLibraryPage(),
+      ),
+      GoRoute(
+        path: '/ebook/read',
+        name: 'ebookRead',
+        builder: (context, state) {
+          final subPath = state.uri.queryParameters['path'] ?? '';
+          final title = state.uri.queryParameters['title'] ?? '';
+          final fileUrl = state.uri.queryParameters['url'] ?? '';
+          final kind = ebookKindFromRoute(state.uri.queryParameters['kind']);
+          return EbookReaderPage(
+            subPath: subPath,
+            title: title,
+            fileUrl: fileUrl,
+            kind: kind,
+          );
+        },
       ),
       GoRoute(
         path: '/voice-history',

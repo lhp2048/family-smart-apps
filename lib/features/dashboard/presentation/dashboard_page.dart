@@ -4,13 +4,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../data/family_api_client.dart';
 import '../data/dashboard_life_menu_catalog.dart';
 import '../data/dashboard_prototype_models.dart';
 import '../data/home_card_preview_models.dart';
+import '../data/home_card_remote_catalog.dart';
+import '../layout/home_card_catalog.dart';
 import '../layout/home_layout_defaults.dart';
 import '../layout/home_layout_edit_mode_provider.dart';
 import '../layout/home_layout_models.dart';
@@ -19,6 +18,8 @@ import '../layout/home_layout_renderer.dart';
 import '../providers/dashboard_home_title_provider.dart';
 import '../providers/dashboard_remote_providers.dart';
 import '../providers/family_api_base_url_provider.dart';
+import '../providers/home_card_catalog_providers.dart';
+import '../providers/home_card_refresh_provider.dart';
 import '../providers/home_card_preview_providers.dart';
 import '../../../core/mock/mock_data_notifier.dart';
 import '../../../shared/providers/task_ui_providers.dart';
@@ -151,13 +152,23 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
     final layoutConfig =
         layoutAsync.valueOrNull ?? kDefaultHomeLayoutConfig;
-    final visibleItems = layoutConfig.visibleItems;
+    final enabledCatalogIds = ref.watch(enabledRemoteHomeCardIdsProvider);
+    final browseItems = filterLayoutByEnabledCatalog(
+      layoutConfig.visibleItems,
+      enabledCatalogIds,
+    );
     final hiddenItems = layoutConfig.hiddenItems;
+
+    final remoteCatalog = ref.watch(remoteHomeCardCatalogProvider).valueOrNull;
+    HomeCardCatalogEntry? catalogEntryFor(String cardId) {
+      final remote = remoteCatalog?.itemsById[cardId.trim().toLowerCase()];
+      return mergeHomeCardCatalogEntry(cardId: cardId, remote: remote);
+    }
 
     final bizDate = ref.watch(dashboardHomeworkBizDateProvider);
     final period = ref.watch(dashboardPointsPeriodProvider);
     final previewKeys = previewKeysForVisibleFeatures(
-      visibleItems,
+      browseItems,
       bizDate: bizDate,
       periodStart: period.periodStart,
       periodEnd: period.periodEnd,
@@ -170,10 +181,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
     Future<void> onPullRefresh() async {
       ref.read(homeCardPreviewRefreshProvider.notifier).state++;
+      ref.invalidate(remoteHomeCardCatalogProvider);
       ref.read(taskRemoteRefreshProvider.notifier).state++;
-      await Future.wait(
-        previewKeys.map((k) => ref.read(homeCardPreviewProvider(k).future)),
-      );
+      await Future.wait([
+        ref.read(remoteHomeCardCatalogProvider.future),
+        ...previewKeys.map((k) => ref.read(homeCardPreviewProvider(k).future)),
+      ]);
     }
 
     final renderData = HomeLayoutRenderData(
@@ -184,6 +197,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         systemMenuItems: mock.dashboardSystemMenu,
       ),
       onEnterEditMode: _enterLayoutEditMode,
+      catalogEntryFor: catalogEntryFor,
     );
 
     final hPad = kDashboardHorizontalPadding;
@@ -238,7 +252,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         ),
                       ],
                     )
-                  : _buildBrowseLayout(context, visibleItems, renderData),
+                  : _buildBrowseLayout(context, browseItems, renderData),
             ),
           ),
         ),

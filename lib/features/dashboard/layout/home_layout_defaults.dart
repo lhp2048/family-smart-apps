@@ -47,6 +47,11 @@ HomeLayoutConfig get kDefaultHomeLayoutConfig => const HomeLayoutConfig(
           size: HomeCardSize.small,
         ),
         HomeFeatureLayoutItem(
+          itemId: 'feat-ebook',
+          cardId: 'ebook',
+          size: HomeCardSize.small,
+        ),
+        HomeFeatureLayoutItem(
           itemId: 'feat-shopping',
           cardId: 'shopping',
           size: HomeCardSize.small,

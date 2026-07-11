@@ -3,7 +3,7 @@
   "id": "family_smart_apps_web",
   "title": "家庭看板 Web",
   "subtitle": "family_smart_apps Flutter Web 静态部署",
-  "version": "26.627.1726",
+  "version": "26.705.1412",
   "port": 18027,
   "defaultInstallDir": "~/family_smart_apps_web",
   "zipNameHint": "family_smart_apps_web.zip",
@@ -23,6 +23,10 @@
     "scripts/serve_web.py"
   ],
   "healthPath": "/",
+  "endpoints": {
+    "webPath": "/",
+    "healthPath": "/"
+  },
   "selfUpgrade": false,
   "build": {
     "windows": "scripts\\build_and_pack.bat",

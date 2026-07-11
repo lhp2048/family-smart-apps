@@ -92,6 +92,14 @@ const kHomeCardCatalog = <HomeCardCatalogEntry>[
     route: '/extra-curricular',
   ),
   HomeCardCatalogEntry(
+    cardId: 'ebook',
+    title: '电子图书',
+    subtitle: '家庭书库 · 在线阅读',
+    icon: Icons.menu_book_rounded,
+    iconBackground: Color(0xFF80CBC4),
+    route: '/ebook',
+  ),
+  HomeCardCatalogEntry(
     cardId: 'shopping',
     title: '购物清单',
     subtitle: '待买商品 · 价格走势',

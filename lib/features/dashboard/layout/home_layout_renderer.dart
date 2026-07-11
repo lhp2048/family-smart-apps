@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 
+
+import '../data/family_api_client.dart';
 
 import '../data/dashboard_prototype_models.dart';
 
@@ -30,6 +33,8 @@ class HomeLayoutRenderData {
 
     this.onEnterEditMode,
 
+    this.catalogEntryFor,
+
   });
 
 
@@ -39,6 +44,9 @@ class HomeLayoutRenderData {
   final Map<String, DashboardLifeMenuItem> menuByRoute;
 
   final VoidCallback? onEnterEditMode;
+
+  /// 合并远程 catalog 后的卡片元数据；为空时回退本地 catalog。
+  final HomeCardCatalogEntry? Function(String cardId)? catalogEntryFor;
 
 
 
@@ -61,13 +69,11 @@ class HomeLayoutRenderData {
       loading: () => HomeCardPreview.loading(item.cardId, item.size),
 
       error: (e, _) => HomeCardPreview.error(
-
         item.cardId,
-
         item.size,
-
-        e.toString(),
-
+        e is DioException
+            ? FamilyApiClient.messageForDio(e)
+            : (e is FamilyApiException ? e.message : e.toString()),
       ),
 
     );
@@ -570,7 +576,7 @@ Widget _buildSmallFeature(
 
 ) {
 
-  final entry = homeCardCatalogEntry(item.cardId);
+  final entry = _catalogEntryFor(item.cardId, data);
 
   if (entry == null) return const SizedBox.shrink();
 
@@ -597,7 +603,7 @@ Widget _buildSummaryFeature(
   HomeFeatureLayoutItem item,
   HomeLayoutRenderData data,
 ) {
-  final entry = homeCardCatalogEntry(item.cardId);
+  final entry = _catalogEntryFor(item.cardId, data);
   if (entry == null) return const SizedBox.shrink();
 
   final onEdit = data.onEnterEditMode;
@@ -609,6 +615,13 @@ Widget _buildSummaryFeature(
     onTap: () => context.push(entry.route),
     onLongPress: onEdit,
   );
+}
+
+HomeCardCatalogEntry? _catalogEntryFor(
+  String cardId,
+  HomeLayoutRenderData data,
+) {
+  return data.catalogEntryFor?.call(cardId) ?? homeCardCatalogEntry(cardId);
 }
 
 

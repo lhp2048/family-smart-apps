@@ -19,5 +19,15 @@ void main() {
     "const String kAppBuildStamp = '$stamp';\n",
   );
 
+  final indexHtml = File('web/index.html');
+  if (indexHtml.existsSync()) {
+    var html = indexHtml.readAsStringSync();
+    html = html.replaceAll(
+      RegExp(r"var APP_BUILD_STAMP = '[^']+';"),
+      "var APP_BUILD_STAMP = '$stamp';",
+    );
+    indexHtml.writeAsStringSync(html);
+  }
+
   stdout.writeln('build_stamp: $stamp -> ${out.path}');
 }

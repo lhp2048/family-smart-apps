@@ -3,16 +3,18 @@ family_smart_center — Flutter 客户端需求说明
 
 一、定位
 --------------------------------------------------------------------------------
-家庭智能中心多端客户端；在线数据以 family_smart_datacenter（:18025）为唯一数据源。
+家庭智能中心多端客户端；在线数据以 family_smart_datacenter（:18025）为唯一业务写数据源。
 
-  · 设置中配置站点根 + API KEY（可空）即可接入。
+  · 设置中配置门户根（:18024）+ API KEY（可空）；经门户发现 datacenter 与 mediacenter。
+  · 电子图书（eBook）数据来自 family_mediacenter（:18026）`GET /api/v1/materials`。
   · 多端 Flutter 客户端；Web 看板独立部署，默认 :18027（见 scripts/build_and_pack.bat）。
-  · Web 门户 family_smart_center_web（:18024）为宣传、管理与 zip 安装升级入口；本 App 不直接调用门户 API。
+  · Web 门户 family_smart_center_web（:18024）为宣传、管理与 zip 安装升级入口。
 
 
 二、读 API（已对接 GET /api/v1/*）
 --------------------------------------------------------------------------------
 成员、首页卡片、作业、积分、心愿、时光机、辩论、课外、音标、feature-entries 等。
+电子图书：`GET {mediacenter}/api/v1/materials`（经门户发现 mediacenter 地址）。
 未配置服务器时使用 Mock 原型数据。
 
 
@@ -32,8 +34,8 @@ family_smart_center — Flutter 客户端需求说明
 
 四、平台差异
 --------------------------------------------------------------------------------
-· Web（kIsWeb）：只读展示，无作业勾选、无心愿/积分等写 UI。
-· Android/iOS/macOS：可写（kAppReadOnlyDataMode=false 时）。
+· Web（kIsWeb）：只读展示，无作业勾选、无心愿/积分等写 UI；电子图书支持书库浏览与 iframe 在线阅读。
+· Android/iOS/macOS：可写（kAppReadOnlyDataMode=false 时）；电子图书首期仅书库浏览，阅读可跳转浏览器。
 
 
 五、构建与部署

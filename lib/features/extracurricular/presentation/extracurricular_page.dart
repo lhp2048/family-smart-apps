@@ -20,7 +20,7 @@ class ExtracurricularPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final originAsync = ref.watch(familyApiOriginNotifierProvider);
+    final originAsync = ref.watch(familyPortalOriginNotifierProvider);
     if (originAsync.isLoading) {
       return Scaffold(
         backgroundColor: AppTheme.shellBackground,
@@ -41,7 +41,7 @@ class ExtracurricularPage extends ConsumerWidget {
         ),
       );
     }
-    final apiOn = originAsync.requireValue.trim().isNotEmpty;
+    final apiOn = ref.watch(familyApiIsConfiguredProvider);
 
     if (apiOn) {
       ref.listen(extracurricularRemoteFiltersAsyncProvider, (prev, next) {

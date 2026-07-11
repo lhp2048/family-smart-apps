@@ -2,22 +2,23 @@
 
 家庭智能中心 Flutter 客户端；本地工程目录名为 `family_smart_center`，**GitHub 仓库名为 `family-bot-app`**。
 
-数据来自 [family_smart_datacenter](../family_smart_datacenter/)（默认 `:18025`）；设置里配置服务器地址与 API KEY 即可接入。
+数据经 [family_smart_center_web](../family_smart_center_web/) 门户发现（`:18024`），内网直连 [family_smart_datacenter](../family_smart_datacenter/)（`:18025`）；设置里只需配置门户地址与 API KEY。
 
 ## 家庭服务端口
 
 | 服务 | 端口 |
 |------|------|
-| Web 门户 `family_smart_center_web` | 18024（宣传 + 管理 + 安装升级） |
+| Web 门户 `family_smart_center_web` | 18024（宣传 + 管理 + 服务发现） |
 | 数据中心 `family_smart_datacenter` | 18025 |
 | **本 App Web 部署**（Mac zip 解压） | **18027** |
 
 ## 接入 Datacenter
 
-1. 确保 datacenter 已启动并可访问 `GET /api/v1/members`
-2. App **设置** → 服务器：`http://<host>:18025`（仅站点根，不含 `/api/v1`）
-3. **API KEY**：无鉴权环境留空；有鉴权时填 `X-API-Key`（写操作可用 Sync Key，见设置）
-4. 保存并校验通过后，各页面从 datacenter 在线读数据
+1. 确保门户（`:18024`）与 datacenter（`:18025`）均已启动
+2. App **设置** → 门户地址：`http://<host>:18024`（仅站点根）
+3. 保存时 App 会请求 `GET /api/v1/portal/services` 发现数据中心，并校验 `GET /api/v1/members`
+4. **API KEY**：无鉴权环境留空；有鉴权时填 `X-API-Key`（写操作可用 Sync Key，见设置）
+5. 校验通过后，各页面内网直连 datacenter 读数据
 
 ## 本 App 独立 Web 打包与部署（:18027）
 
